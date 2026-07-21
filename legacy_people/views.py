@@ -1,77 +1,96 @@
-from django.http import JsonResponse
 from django.shortcuts import render, redirect
-from django.contrib import messages
-from django.contrib.auth import login, logout
-from django.contrib.auth.forms import AuthenticationForm
+from django.contrib.auth import login, logout, authenticate
 from django.contrib.auth.decorators import login_required
+from django.contrib import messages
 from django.core.paginator import Paginator
+from django.http import JsonResponse
 from .forms import PersonForm
 from .models import Person
 
+FEELING_MAP = {
+    1: ('Ótimo', 'bi-emoji-laughing'),
+    2: ('Bem', 'bi-emoji-smile'),
+    3: ('Neutro', 'bi-emoji-neutral'),
+    4: ('Não muito bem', 'bi-emoji-frown'),
+    5: ('Mal', 'bi-emoji-angry'),
+}
+
 def landing_page(request):
-    """View for the landing page."""
+    """Render the public landing page."""
     return render(request, 'legacy_people/landing.html')
 
 def main_form(request):
-    """View for the main form."""
+    """Render and process the main questionnaire form."""
     if request.method == 'POST':
         form = PersonForm(request.POST)
         if form.is_valid():
             form.save()
-            messages.success(request, 'Formulário enviado com sucesso! Entraremos em contato em breve.')
+            messages.success(request, 'Obrigado por responder nosso formulário!')
             return redirect('legacy_people:landing')
-
-        for error in form.errors.values():
-            messages.error(request, error)
-    return render(request, 'legacy_people/main_form.html')
+        messages.error(request, 'Por favor, corrija os erros no formulário.')
+    else:
+        form = PersonForm()
+    return render(request, 'legacy_people/main_form.html', {'form': form})
 
 def login_view(request):
-    """View for user authentication."""
+    """Render and process administrative login."""
     if request.user.is_authenticated:
         return redirect('legacy_people:dashboard')
 
     if request.method == 'POST':
-        form = AuthenticationForm(request, data=request.POST)
-        if form.is_valid():
-            user = form.get_user()
+        username = request.POST.get('username')
+        password = request.POST.get('password')
+        user = authenticate(request, username=username, password=password)
+        if user is not None:
             login(request, user)
-            messages.success(request, f'Bem-vindo de volta, {user.username}!')
+            messages.success(request, 'Login realizado com sucesso.')
             return redirect('legacy_people:dashboard')
-
         messages.error(request, 'Usuário ou senha inválidos.')
-    else:
-        form = AuthenticationForm()
 
-    return render(request, 'legacy_people/login.html', {'form': form})
+    return render(request, 'legacy_people/login.html')
 
 def logout_view(request):
-    """View for logging out users."""
+    """Log out the current user and redirect to landing page."""
     logout(request)
     messages.info(request, 'Sessão encerrada com sucesso.')
     return redirect('legacy_people:landing')
 
+def _get_filtered_people(feeling_param):
+    """Filter Person queryset based on feeling parameter."""
+    if feeling_param and feeling_param.isdigit() and int(feeling_param) in [1, 2, 3, 4, 5]:
+        selected_feeling = int(feeling_param)
+        return selected_feeling, Person.objects.filter(feeling=selected_feeling)
+    return None, Person.objects.all()
+
+def _handle_feeling_ajax(feeling_param):
+    """Return JsonResponse for feeling_ajax request."""
+    selected_feeling, people_qs = _get_filtered_people(feeling_param)
+    people_data = [{
+        'id': p.id,
+        'name': p.name,
+        'email': p.email,
+        'whatsapp_clean': p.whatsapp_clean,
+        'feeling': p.feeling,
+        'feeling_label': FEELING_MAP.get(p.feeling, ('', ''))[0],
+        'feeling_icon': FEELING_MAP.get(p.feeling, ('', ''))[1],
+    } for p in people_qs]
+
+    return JsonResponse({
+        'selected_feeling': selected_feeling,
+        'people': people_data,
+    })
+
 @login_required
 def dashboard_view(request):
     """Authenticated dashboard displaying form data metrics and prayer requests."""
-    total_people = Person.objects.count()
-    no_gc_count = Person.objects.filter(has_gc=False).count()
-    wants_chat_count = Person.objects.filter(wants_chat=True).count()
+    if request.GET.get('feeling_ajax') == '1':
+        return _handle_feeling_ajax(request.GET.get('feeling'))
 
     feelings_distribution = {
-        1: Person.objects.filter(feeling=1).count(),
-        2: Person.objects.filter(feeling=2).count(),
-        3: Person.objects.filter(feeling=3).count(),
-        4: Person.objects.filter(feeling=4).count(),
-        5: Person.objects.filter(feeling=5).count(),
+        key: Person.objects.filter(feeling=key).count() for key in range(1, 6)
     }
 
-    feeling_filter = request.GET.get('feeling')
-    if feeling_filter and feeling_filter.isdigit() and int(feeling_filter) in [1, 2, 3, 4, 5]:
-        selected_feeling = int(feeling_filter)
-        people_list = Person.objects.filter(feeling=selected_feeling)
-    else:
-        selected_feeling = None
-        people_list = Person.objects.all()
+    selected_feeling, people_list = _get_filtered_people(request.GET.get('feeling'))
 
     # Paginated prayer requests (max 10 per page)
     prayers_list = Person.objects.exclude(
@@ -80,11 +99,8 @@ def dashboard_view(request):
         prayer_request__isnull=True
     ).order_by('-created_at')
 
-    paginator = Paginator(prayers_list, 10)
-    page_number = request.GET.get('page', 1)
-    prayers_page = paginator.get_page(page_number)
+    prayers_page = Paginator(prayers_list, 10).get_page(request.GET.get('page', 1))
 
-    # Return self-contained AJAX response if requested
     if request.GET.get('ajax') == '1':
         prayers_data = [{
             'name': p.name,
@@ -100,12 +116,13 @@ def dashboard_view(request):
         })
 
     context = {
-        'total_people': total_people,
-        'no_gc_count': no_gc_count,
-        'wants_chat_count': wants_chat_count,
+        'total_people': Person.objects.count(),
+        'no_gc_count': Person.objects.filter(has_gc=False).count(),
+        'wants_chat_count': Person.objects.filter(wants_chat=True).count(),
         'feelings_distribution': feelings_distribution,
         'selected_feeling': selected_feeling,
         'people_list': people_list,
         'prayers_page': prayers_page,
     }
+
     return render(request, 'legacy_people/dashboard.html', context)

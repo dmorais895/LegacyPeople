@@ -50,34 +50,32 @@
     </div>
     <div class="col-lg-7">
         <div class="glass-panel p-4 h-100">
-            <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
-                <h5 class="fw-bold text-glass mb-0">Filtrar Pessoas por Sentimento</h5>
-                <a href="{% url 'legacy_people:dashboard' %}" class="btn btn-glass btn-sm {% if not selected_feeling %}active{% endif %}">
+            <h5 class="fw-bold text-glass mb-2">Filtrar Pessoas por Sentimento</h5>
+
+            <!-- Responsive Single-Row Filter Bar (Self-Contained AJAX Filtering) -->
+            <div class="d-flex flex-nowrap overflow-auto custom-scrollbar pt-2 pb-2 mb-4 gap-1 gap-md-2 align-items-center justify-content-between">
+                <button type="button" class="btn btn-glass btn-sm text-nowrap flex-fill text-center px-2 py-1 feeling-filter-btn {% if not selected_feeling %}active{% endif %}" data-feeling="" onclick="filterFeeling(null)">
                     Todos
-                </a>
-            </div>
-            
-            <!-- Feeling Filter Buttons -->
-            <div class="d-flex flex-wrap gap-2 mb-4">
-                <a href="?feeling=1" class="btn btn-glass btn-sm {% if selected_feeling == 1 %}active{% endif %}">
+                </button>
+                <button type="button" class="btn btn-glass btn-sm text-nowrap flex-fill text-center px-2 py-1 feeling-filter-btn {% if selected_feeling == 1 %}active{% endif %}" data-feeling="1" onclick="filterFeeling(1)">
                     <i class="bi bi-emoji-laughing me-1"></i>Ótimo ({{ feelings_distribution.1 }})
-                </a>
-                <a href="?feeling=2" class="btn btn-glass btn-sm {% if selected_feeling == 2 %}active{% endif %}">
+                </button>
+                <button type="button" class="btn btn-glass btn-sm text-nowrap flex-fill text-center px-2 py-1 feeling-filter-btn {% if selected_feeling == 2 %}active{% endif %}" data-feeling="2" onclick="filterFeeling(2)">
                     <i class="bi bi-emoji-smile me-1"></i>Bem ({{ feelings_distribution.2 }})
-                </a>
-                <a href="?feeling=3" class="btn btn-glass btn-sm {% if selected_feeling == 3 %}active{% endif %}">
+                </button>
+                <button type="button" class="btn btn-glass btn-sm text-nowrap flex-fill text-center px-2 py-1 feeling-filter-btn {% if selected_feeling == 3 %}active{% endif %}" data-feeling="3" onclick="filterFeeling(3)">
                     <i class="bi bi-emoji-neutral me-1"></i>Neutro ({{ feelings_distribution.3 }})
-                </a>
-                <a href="?feeling=4" class="btn btn-glass btn-sm {% if selected_feeling == 4 %}active{% endif %}">
+                </button>
+                <button type="button" class="btn btn-glass btn-sm text-nowrap flex-fill text-center px-2 py-1 feeling-filter-btn {% if selected_feeling == 4 %}active{% endif %}" data-feeling="4" onclick="filterFeeling(4)">
                     <i class="bi bi-emoji-frown me-1"></i>Não muito bem ({{ feelings_distribution.4 }})
-                </a>
-                <a href="?feeling=5" class="btn btn-glass btn-sm {% if selected_feeling == 5 %}active{% endif %}">
+                </button>
+                <button type="button" class="btn btn-glass btn-sm text-nowrap flex-fill text-center px-2 py-1 feeling-filter-btn {% if selected_feeling == 5 %}active{% endif %}" data-feeling="5" onclick="filterFeeling(5)">
                     <i class="bi bi-emoji-angry me-1"></i>Mal ({{ feelings_distribution.5 }})
-                </a>
+                </button>
             </div>
 
-            <!-- Profile Cards Grid -->
-            <div class="row g-3 pe-1" style="max-height: 320px; overflow-y: auto;">
+            <!-- Profile Cards Grid (Self-Contained AJAX Updated) -->
+            <div class="row g-3 pe-1 custom-scrollbar" id="peopleCardsContainer" style="max-height: 320px; overflow-y: auto;">
                 {% for person in people_list %}
                     <div class="col-md-6">
                         <div class="glass-panel p-3 h-100 d-flex flex-column justify-content-between border-0" style="background: rgba(0, 0, 0, 0.25);">
@@ -231,6 +229,56 @@
                 }
             })
             .catch(err => console.error('Erro ao carregar pedidos de oração:', err));
+    }
+
+    function filterFeeling(feelingVal) {
+        const url = feelingVal ? '?feeling_ajax=1&feeling=' + feelingVal : '?feeling_ajax=1';
+        fetch(url)
+            .then(response => response.json())
+            .then(data => {
+                // Update active state on filter buttons
+                document.querySelectorAll('.feeling-filter-btn').forEach(btn => {
+                    const btnFeeling = btn.getAttribute('data-feeling');
+                    if ((!data.selected_feeling && !btnFeeling) || (data.selected_feeling && parseInt(btnFeeling, 10) === data.selected_feeling)) {
+                        btn.classList.add('active');
+                    } else {
+                        btn.classList.remove('active');
+                    }
+                });
+
+                // Update Profile Cards Grid
+                const container = document.getElementById('peopleCardsContainer');
+                if (data.people.length === 0) {
+                    container.innerHTML = `
+                        <div class="col-12 text-center text-glass-light py-4">
+                            Nenhuma pessoa encontrada para este filtro.
+                        </div>`;
+                } else {
+                    container.innerHTML = data.people.map(p => `
+                        <div class="col-md-6">
+                            <div class="glass-panel p-3 h-100 d-flex flex-column justify-content-between border-0" style="background: rgba(0, 0, 0, 0.25);">
+                                <div>
+                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                        <h6 class="fw-bold text-white mb-0 text-truncate" title="${p.name}">${p.name}</h6>
+                                        <span class="badge bg-dark text-glass-light border border-secondary ms-1">
+                                            <i class="bi ${p.feeling_icon} me-1"></i>${p.feeling_label}
+                                        </span>
+                                    </div>
+                                    <p class="text-glass-light small mb-3 text-truncate" title="${p.email}">
+                                        <i class="bi bi-envelope me-1"></i>${p.email}
+                                    </p>
+                                </div>
+                                <div>
+                                    <a href="https://wa.me/${p.whatsapp_clean}" target="_blank" rel="noopener noreferrer" class="btn btn-success btn-sm w-100 rounded-pill fw-semibold shadow-sm text-uppercase">
+                                        <i class="bi bi-whatsapp me-2"></i>Conversar no WhatsApp
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('');
+                }
+            })
+            .catch(err => console.error('Erro ao filtrar pessoas por sentimento:', err));
     }
 
     document.addEventListener("DOMContentLoaded", function() {

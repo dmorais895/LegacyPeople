@@ -271,3 +271,13 @@ class LegacyPeopleAuthAndDashboardTests(TestCase):
         self.assertEqual(json_data['page'], 2)
         self.assertEqual(json_data['num_pages'], 2)
         self.assertEqual(len(json_data['prayers']), 5)
+
+    def test_dashboard_feeling_ajax_filter(self):
+        """Test that feeling_ajax=1 returns JsonResponse with filtered people list."""
+        self.client.login(username='testadmin', password='password123')
+        response = self.client.get(reverse('legacy_people:dashboard') + '?feeling_ajax=1&feeling=1')
+        self.assertEqual(response.status_code, 200)
+        json_data = response.json()
+        self.assertEqual(json_data['selected_feeling'], 1)
+        self.assertEqual(len(json_data['people']), 1)
+        self.assertEqual(json_data['people'][0]['name'], 'Person 1')
