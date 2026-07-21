@@ -9,7 +9,7 @@
     <div class="col-md-4 text-md-end mt-3 mt-md-0">
         <!-- Manual Refresh Button -->
         <a href="{% url 'legacy_people:dashboard' %}" class="btn btn-glass btn-sm">
-            🔄 Atualizar Dados
+            <i class="bi bi-arrow-clockwise me-1"></i>Atualizar Dados
         </a>
     </div>
 </div>
@@ -58,19 +58,19 @@
             <!-- Feeling Filter Buttons -->
             <div class="d-flex flex-wrap gap-2 mb-4">
                 <a href="?feeling=1" class="btn btn-glass btn-sm {% if selected_feeling == 1 %}active{% endif %}">
-                    1 - Ótimo 😁 ({{ feelings_distribution.1 }})
+                    <i class="bi bi-emoji-laughing me-1"></i>Ótimo ({{ feelings_distribution.1 }})
                 </a>
                 <a href="?feeling=2" class="btn btn-glass btn-sm {% if selected_feeling == 2 %}active{% endif %}">
-                    2 - Bem 🙂 ({{ feelings_distribution.2 }})
+                    <i class="bi bi-emoji-smile me-1"></i>Bem ({{ feelings_distribution.2 }})
                 </a>
                 <a href="?feeling=3" class="btn btn-glass btn-sm {% if selected_feeling == 3 %}active{% endif %}">
-                    3 - Neutro 😐 ({{ feelings_distribution.3 }})
+                    <i class="bi bi-emoji-neutral me-1"></i>Neutro ({{ feelings_distribution.3 }})
                 </a>
                 <a href="?feeling=4" class="btn btn-glass btn-sm {% if selected_feeling == 4 %}active{% endif %}">
-                    4 - Não muito bem 😕 ({{ feelings_distribution.4 }})
+                    <i class="bi bi-emoji-frown me-1"></i>Não muito bem ({{ feelings_distribution.4 }})
                 </a>
                 <a href="?feeling=5" class="btn btn-glass btn-sm {% if selected_feeling == 5 %}active{% endif %}">
-                    5 - Mal 😔 ({{ feelings_distribution.5 }})
+                    <i class="bi bi-emoji-angry me-1"></i>Mal ({{ feelings_distribution.5 }})
                 </a>
             </div>
 
@@ -83,11 +83,11 @@
                                 <div class="d-flex justify-content-between align-items-start mb-2">
                                     <h6 class="fw-bold text-white mb-0 text-truncate" title="{{ person.name }}">{{ person.name }}</h6>
                                     <span class="badge bg-dark text-glass-light border border-secondary ms-1">
-                                        {% if person.feeling == 1 %}1 - Ótimo 😁
-                                        {% elif person.feeling == 2 %}2 - Bem 🙂
-                                        {% elif person.feeling == 3 %}3 - Neutro 😐
-                                        {% elif person.feeling == 4 %}4 - Não muito bem 😕
-                                        {% elif person.feeling == 5 %}5 - Mal 😔
+                                        {% if person.feeling == 1 %}<i class="bi bi-emoji-laughing me-1"></i>Ótimo
+                                        {% elif person.feeling == 2 %}<i class="bi bi-emoji-smile me-1"></i>Bem
+                                        {% elif person.feeling == 3 %}<i class="bi bi-emoji-neutral me-1"></i>Neutro
+                                        {% elif person.feeling == 4 %}<i class="bi bi-emoji-frown me-1"></i>Não muito bem
+                                        {% elif person.feeling == 5 %}<i class="bi bi-emoji-angry me-1"></i>Mal
                                         {% endif %}
                                     </span>
                                 </div>
@@ -119,7 +119,7 @@
             <h5 class="fw-bold text-glass mb-1">
                 <i class="bi bi-heart-pulse me-2"></i>Pedidos de Oração
             </h5>
-            <p class="text-glass-light small mb-0">Lista agregada dos pedidos de oração (máximo 10 por página).</p>
+            <p class="text-glass-light small mb-0">Lista agregada dos pedidos de oração.</p>
         </div>
         <div id="prayerPageBadge">
             {% if prayers_page.paginator.num_pages > 1 %}
@@ -245,7 +245,7 @@
             type: 'pie',
             plugins: [ChartDataLabels],
             data: {
-                labels: ['1 - Ótimo 😁', '2 - Bem 🙂', '3 - Neutro 😐', '4 - Não muito bem 😕', '5 - Mal 😔'],
+                labels: ['Ótimo', 'Bem', 'Neutro', 'Não muito bem', 'Mal'],
                 datasets: [{
                     data: feelingData,
                     backgroundColor: [
