@@ -28,12 +28,17 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY . .
 
+# Copy and setup entrypoint script
+COPY devops/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
 # Security best practice: Run app as a non-root user
 RUN useradd -m -u 1000 appuser && \
-    chown -R appuser:appuser /app
+    chown -R appuser:appuser /app /entrypoint.sh
 
 USER appuser
 
 EXPOSE 8000
 
+ENTRYPOINT ["/entrypoint.sh"]
 CMD ["gunicorn", "--bind", "0.0.0.0:8000", "core.wsgi:application"]
