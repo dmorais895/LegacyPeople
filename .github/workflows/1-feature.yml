@@ -61,7 +61,7 @@ jobs:
         env:
           DB_ENGINE: django.db.backends.sqlite3
         run: |
-          python manage.py test profiles --verbosity=2
+          python manage.py test legacy_people --verbosity=2
 
   create-pr:
     needs: build
