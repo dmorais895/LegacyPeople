@@ -150,3 +150,5 @@ STATICFILES_FINDERS = [
 COMPRESS_PRECOMPILERS = (
     ('text/x-scss', 'npx sass {infile} {outfile}'),
 )
+
+LOGIN_URL = 'legacy_people:login'

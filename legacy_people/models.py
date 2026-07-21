@@ -41,3 +41,8 @@ class Person(models.Model):
 
     def __str__(self):
         return f"{self.name} - {self.email}"
+
+    @property
+    def whatsapp_clean(self):
+        """Returns digits-only whatsapp number for wa.me API link."""
+        return ''.join(filter(str.isdigit, self.whatsapp))

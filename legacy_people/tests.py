@@ -1,7 +1,10 @@
 from django.test import TestCase
 from django.urls import reverse
+from django.contrib.auth import get_user_model
 from .forms import PersonForm
 from .models import Person
+
+User = get_user_model()
 
 class LegacyPeopleViewTests(TestCase):
     def test_landing_page_status_code(self):
@@ -53,7 +56,7 @@ class LegacyPeopleFormTests(TestCase):
             'name': 'Test User',
             'email': 'test@example.com',
             'whatsapp': '+55 (11) 99999-9999',
-            'time_lagoinha': '1 ano',
+            'time_lagoinha': 'menos_6_meses',
             'feeling': 1,
             'frequents_legacy': True,
         }
@@ -66,14 +69,64 @@ class LegacyPeopleFormTests(TestCase):
         form_data = {
             'name': 'Test User',
             'email': 'test@example.com',
-            'whatsapp': '1234567890', # Missing +55
-            'time_lagoinha': '1 ano',
+            'whatsapp': '1234567890',
+            'time_lagoinha': 'menos_6_meses',
             'feeling': 1,
             'frequents_legacy': True,
         }
         form = PersonForm(data=form_data)
         self.assertFalse(form.is_valid())
         self.assertIn('whatsapp', form.errors)
+
+    def test_xss_sanitization_in_form_fields(self):
+        """Test that HTML/script tags are stripped from input fields to prevent XSS."""
+        form_data = {
+            'name': '<script>alert("xss")</script> Test User',
+            'email': 'TEST@EXAMPLE.COM',
+            'whatsapp': '+5511999999999',
+            'time_lagoinha': 'menos_6_meses',
+            'feeling': 1,
+            'prayer_request': '<b>Abençoe</b> <img src=x onerror=alert(1)>',
+            'frequents_legacy': True,
+        }
+        form = PersonForm(data=form_data)
+        self.assertTrue(form.is_valid())
+        self.assertEqual(form.cleaned_data['name'], 'alert("xss") Test User')
+        self.assertEqual(form.cleaned_data['email'], 'test@example.com')
+        self.assertEqual(form.cleaned_data['prayer_request'], 'Abençoe')
+
+    def test_excessive_length_validation(self):
+        """Test that prayer requests exceeding 2000 characters fail validation to prevent DoS."""
+        form_data = {
+            'name': 'Test User',
+            'email': 'test@example.com',
+            'whatsapp': '+5511999999999',
+            'time_lagoinha': 'menos_6_meses',
+            'feeling': 1,
+            'prayer_request': 'a' * 2001,
+            'frequents_legacy': True,
+        }
+        form = PersonForm(data=form_data)
+        self.assertFalse(form.is_valid())
+        self.assertIn('prayer_request', form.errors)
+
+    def test_conditional_dependency_cleanup(self):
+        """Test that orphan data is cleared when conditional fields are false."""
+        form_data = {
+            'name': 'Test User',
+            'email': 'test@example.com',
+            'whatsapp': '+5511999999999',
+            'has_gc': False,
+            'gc_name': 'Tampered GC Name',
+            'time_lagoinha': 'menos_6_meses',
+            'feeling': 1,
+            'frequents_legacy': True,
+            'legacy_reason': 'Tampered Reason',
+        }
+        form = PersonForm(data=form_data)
+        self.assertTrue(form.is_valid())
+        self.assertEqual(form.cleaned_data['gc_name'], '')
+        self.assertEqual(form.cleaned_data['legacy_reason'], '')
 
 class LegacyPeopleSubmissionTests(TestCase):
     def test_main_form_post_success(self):
@@ -82,10 +135,117 @@ class LegacyPeopleSubmissionTests(TestCase):
             'name': 'Test User',
             'email': 'test@example.com',
             'whatsapp': '+5511999999999',
-            'time_lagoinha': '1 ano',
+            'time_lagoinha': 'menos_6_meses',
             'feeling': 1,
             'frequents_legacy': True,
         }
         response = self.client.post(reverse('legacy_people:main_form'), data=form_data)
         self.assertEqual(response.status_code, 302)
         self.assertEqual(Person.objects.count(), 1)
+
+class LegacyPeopleAuthAndDashboardTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username='testadmin', password='password123')
+        self.p1 = Person.objects.create(
+            name='Person 1', email='p1@ex.com', whatsapp='+5511999991111',
+            has_gc=False, time_lagoinha='menos_6_meses', feeling=1, wants_chat=True
+        )
+        self.p2 = Person.objects.create(
+            name='Person 2', email='p2@ex.com', whatsapp='+5511999992222',
+            has_gc=True, gc_name='GC 1', time_lagoinha='1_3_anos', feeling=5, wants_chat=False
+        )
+
+    def test_person_whatsapp_clean_property(self):
+        """Test that whatsapp_clean property returns digits only."""
+        self.assertEqual(self.p1.whatsapp_clean, '5511999991111')
+
+    def test_dashboard_requires_login(self):
+        """Test that dashboard redirects unauthenticated users to login."""
+        response = self.client.get(reverse('legacy_people:dashboard'))
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(reverse('legacy_people:login'), response.url)
+
+    def test_login_page_renders(self):
+        """Test that login page returns 200 OK."""
+        response = self.client.get(reverse('legacy_people:login'))
+        self.assertEqual(response.status_code, 200)
+
+    def test_login_success_redirects_to_dashboard(self):
+        """Test that logging in with valid credentials redirects to dashboard."""
+        response = self.client.post(reverse('legacy_people:login'), {
+            'username': 'testadmin',
+            'password': 'password123'
+        })
+        self.assertEqual(response.status_code, 302)
+        self.assertRedirects(response, reverse('legacy_people:dashboard'))
+
+    def test_dashboard_displays_correct_metrics(self):
+        """Test that dashboard calculates metrics correctly."""
+        self.client.login(username='testadmin', password='password123')
+        response = self.client.get(reverse('legacy_people:dashboard'))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context['total_people'], 2)
+        self.assertEqual(response.context['no_gc_count'], 1)
+        self.assertEqual(response.context['wants_chat_count'], 1)
+        self.assertEqual(response.context['feelings_distribution'][1], 1)
+        self.assertEqual(response.context['feelings_distribution'][5], 1)
+
+    def test_dashboard_feeling_filter(self):
+        """Test filtering dashboard people list by feeling."""
+        self.client.login(username='testadmin', password='password123')
+        response = self.client.get(reverse('legacy_people:dashboard') + '?feeling=1')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context['selected_feeling'], 1)
+        self.assertEqual(len(response.context['people_list']), 1)
+        self.assertEqual(response.context['people_list'][0].name, 'Person 1')
+
+    def test_dashboard_renders_profile_cards_and_whatsapp_api_link(self):
+        """Test that profile cards are rendered with direct wa.me WhatsApp links."""
+        self.client.login(username='testadmin', password='password123')
+        response = self.client.get(reverse('legacy_people:dashboard'))
+        self.assertContains(response, 'https://wa.me/5511999991111')
+        self.assertContains(response, 'https://wa.me/5511999992222')
+        self.assertContains(response, 'bi-whatsapp')
+
+    def test_dashboard_prayer_requests_pagination(self):
+        """Test that prayer requests are paginated max 10 per page."""
+        for i in range(1, 16):
+            Person.objects.create(
+                name=f"Prayer User {i}",
+                email=f"pu{i}@ex.com",
+                whatsapp=f"+551199999{i:04d}",
+                time_lagoinha="menos_6_meses",
+                feeling=1,
+                prayer_request=f"Pedido {i}"
+            )
+
+        self.client.login(username='testadmin', password='password123')
+
+        response_page1 = self.client.get(reverse('legacy_people:dashboard') + '?page=1')
+        self.assertEqual(response_page1.status_code, 200)
+        self.assertEqual(len(response_page1.context['prayers_page']), 10)
+
+        response_page2 = self.client.get(reverse('legacy_people:dashboard') + '?page=2')
+        self.assertEqual(response_page2.status_code, 200)
+        self.assertEqual(len(response_page2.context['prayers_page']), 5)
+
+    def test_dashboard_prayer_requests_ajax_pagination(self):
+        """Test that AJAX request for prayer requests pagination returns JsonResponse without full page reload."""
+        for i in range(1, 16):
+            Person.objects.create(
+                name=f"Prayer User {i}",
+                email=f"pu{i}@ex.com",
+                whatsapp=f"+551199999{i:04d}",
+                time_lagoinha="menos_6_meses",
+                feeling=1,
+                prayer_request=f"Pedido {i}"
+            )
+
+        self.client.login(username='testadmin', password='password123')
+
+        response = self.client.get(reverse('legacy_people:dashboard') + '?page=2&ajax=1')
+        self.assertEqual(response.status_code, 200)
+        json_data = response.json()
+        self.assertEqual(json_data['page'], 2)
+        self.assertEqual(json_data['num_pages'], 2)
+        self.assertEqual(len(json_data['prayers']), 5)
