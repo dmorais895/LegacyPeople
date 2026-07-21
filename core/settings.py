@@ -83,14 +83,17 @@ WSGI_APPLICATION = 'core.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 
+_DB_ENGINE = os.getenv('DB_ENGINE', 'django.db.backends.mysql')
+_USE_SQLITE = _DB_ENGINE == 'django.db.backends.sqlite3'
+
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.mysql',
-        'NAME': os.getenv('DB_NAME', 'legacypeople'),
-        'USER': os.getenv('DB_USER', 'django'),
-        'PASSWORD': os.getenv('DB_PASSWORD', 'django'),
-        'HOST': os.getenv('DB_HOST', '127.0.0.1'),
-        'PORT': os.getenv('DB_PORT', '3306'),
+        'ENGINE': _DB_ENGINE,
+        'NAME': BASE_DIR / 'db.sqlite3' if _USE_SQLITE else os.getenv('DB_NAME', 'legacypeople'),
+        'USER': '' if _USE_SQLITE else os.getenv('DB_USER', 'django'),
+        'PASSWORD': '' if _USE_SQLITE else os.getenv('DB_PASSWORD', 'django'),
+        'HOST': '' if _USE_SQLITE else os.getenv('DB_HOST', '127.0.0.1'),
+        'PORT': '' if _USE_SQLITE else os.getenv('DB_PORT', '3306'),
     }
 }
 

@@ -1,0 +1,93 @@
+name: 1 - FEATURE BRANCHES
+
+on:
+  push:
+    branches:
+      - "feature/*"
+  pull_request:
+    branches:
+      - "main"
+      - "develop"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # Aligned with the runtime declared in Dockerfile (python:3.10-slim).
+        # Testing 3.11 and 3.12 ensures forward-compatibility.
+        python-version: ["3.10", "3.11", "3.12"]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      # Cache pip packages keyed by OS + Python version + requirements hash.
+      # Cuts install time from ~30s to ~5s on cache hits.
+      - name: Cache pip packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ matrix.python-version }}-${{ hashFiles('requirements-dev.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-${{ matrix.python-version }}-
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pylint pylint-django
+          if [ -f requirements-dev.txt ]; then pip install -r requirements-dev.txt; fi
+
+      # Run pylint with the Django plugin so it understands models, views, etc.
+      # DB_ENGINE=sqlite3 avoids connection attempts to external databases.
+      - name: Lint with pylint
+        env:
+          DJANGO_SETTINGS_MODULE: core.settings
+          DB_ENGINE: django.db.backends.sqlite3
+        run: |
+          pylint --load-plugins=pylint_django \
+                 --django-settings-module=core.settings \
+                 $(git ls-files '*.py' | grep -v 'migrations/')
+
+      # Run the test suite using SQLite so no external service is needed.
+      - name: Run tests
+        env:
+          DB_ENGINE: django.db.backends.sqlite3
+        run: |
+          python manage.py test legacy_people --verbosity=2
+
+  create-pr:
+    needs: build
+    runs-on: ubuntu-latest
+    # Only open the PR on direct pushes to feature branches, not on PRs.
+    if: github.event_name == 'push'
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Create Pull Request to develop
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Check if a PR already exists for this branch targeting develop
+          pr_exists=$(gh pr list --head "${{ github.ref_name }}" --base develop --json number --jq '.[0].number')
+          if [ -n "$pr_exists" ]; then
+            echo "Pull request already exists: #$pr_exists"
+          else
+            echo "Creating pull request from ${{ github.ref_name }} to develop..."
+            gh pr create \
+              --title "Auto PR: ${{ github.ref_name }} to develop" \
+              --body "This PR was automatically created by the **1 - FEATURE BRANCHES** workflow because all build, lint and test steps finished with success." \
+              --base develop \
+              --head "${{ github.ref_name }}"
+          fi
