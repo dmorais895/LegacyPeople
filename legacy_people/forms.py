@@ -1,6 +1,7 @@
+import re
+
 from django import forms
 from .models import Person
-import re
 
 class PersonForm(forms.ModelForm):
     class Meta:
@@ -15,7 +16,7 @@ class PersonForm(forms.ModelForm):
         whatsapp = self.cleaned_data.get('whatsapp', '')
         # Remove any spaces, dashes, or parentheses
         whatsapp = re.sub(r'[\s\-\(\)]', '', whatsapp)
-        
+
         # Verify the format starts with +55 and has 10 or 11 digits
         if not re.match(r'^\+55\d{10,11}$', whatsapp):
             raise forms.ValidationError("Por favor, insira um número válido com o código +55 (Ex: +5511999999999).")
