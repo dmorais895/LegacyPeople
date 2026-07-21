@@ -25,7 +25,9 @@
     <div class="col-md-4">
         <div class="glass-panel p-4 text-center">
             <h6 class="text-glass-light text-uppercase fw-semibold mb-2">Sem Grupo de Crescimento</h6>
-            <h2 class="display-5 fw-bold text-white mb-0">{{ no_gc_count }}</h2>
+            <h2 class="display-5 fw-bold mb-0 {% if no_gc_count == 0 %}text-success{% elif no_gc_count < 5 %}text-warning{% else %}text-danger{% endif %}">
+                {{ no_gc_count }}
+            </h2>
         </div>
     </div>
     <div class="col-md-4">
