@@ -197,16 +197,56 @@ python manage.py runserver
 
 ---
 
-### Opção 3: Ambiente Completo via Docker Compose
+### Opção 3: Via Docker Compose
 
-Sobe simultaneamente o container da aplicação e o MySQL 8.0 pré-configurado.
+O Docker Compose sobe simultaneamente o container da aplicação e o MySQL 8.0.
+O comportamento do container varia de acordo com as variáveis `DEBUG` e `SECRET_KEY` definidas no `.env`.
+
+#### 🛠️ Container de Desenvolvimento (`DEBUG=True`)
 
 ```bash
 git clone https://github.com/dmorais895/LegacyPeople.git
 cd LegacyPeople
-cp .env.example .env  # Edite conforme necessário
+cp .env.example .env
+```
+
+Edite o `.env` para o modo desenvolvimento:
+```dotenv
+SECRET_KEY=qualquer-string-longa-aqui
+DEBUG=True
+ALLOWED_HOSTS=          # Pode deixar vazio em DEBUG=True
+DB_NAME=legacypeople
+DB_USER=django
+DB_PASSWORD=django
+DB_ROOT_PASSWORD=root
+```
+
+```bash
 docker compose -f devops/docker-compose.yml up --build
 ```
+
+#### 🚀 Container de Produção (`DEBUG=False`)
+
+```bash
+cp .env.example .env
+```
+
+Edite o `.env` para o modo produção:
+```dotenv
+SECRET_KEY=<chave-gerada-com-get_random_secret_key>
+DEBUG=False
+ALLOWED_HOSTS=legacypeople.com.br,www.legacypeople.com.br
+DB_NAME=legacypeople
+DB_USER=django
+DB_PASSWORD=<senha-forte>
+DB_ROOT_PASSWORD=<senha-root-forte>
+```
+
+```bash
+docker compose -f devops/docker-compose.yml up -d
+```
+
+> **⚠️ Atenção:** O `entrypoint.sh` valida a presença de `SECRET_KEY` antes de iniciar o servidor. O container falha imediatamente com uma mensagem clara caso ela não esteja definida.
 
 Acesse em `http://localhost:8000`. As migrações e arquivos estáticos são executados automaticamente pelo `entrypoint.sh`.
 

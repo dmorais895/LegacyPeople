@@ -1,14 +1,25 @@
-# Best Practice Production Dockerfile for Django Monolith
+# =============================================================================
+# Best Practice Dockerfile for Django Monolith — LegacyPeople
+# Supports both development and production modes via environment variables:
+#
+#   Development container (docker compose up):
+#     DEBUG=True, SECRET_KEY supplied via .env / docker-compose environment
+#
+#   Production container (Docker image from GHCR):
+#     DEBUG=False (default), SECRET_KEY must be injected at runtime via env.
+#
+# NEVER embed real SECRET_KEY values into the image. Always pass at runtime.
+# =============================================================================
 FROM python:3.12-slim
 
-# Prevent Python from writing .pyc files & enable unbuffered output
+# Python runtime best practices
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PORT=8000
 
 WORKDIR /app
 
-# Install system dependencies (curl for Node.js / Dart Sass precompiler)
+# Install system dependencies (Node.js 20 required for Dart Sass via npx sass)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     gnupg \

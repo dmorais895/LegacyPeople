@@ -8,6 +8,18 @@ services:
     ports:
       - "8000:8000"
     environment:
+      # -----------------------------------------------------------------------
+      # Django — Security settings
+      # SECRET_KEY is required. Set it in your .env file.
+      # DEBUG=True enables the development server and relaxed ALLOWED_HOSTS.
+      # -----------------------------------------------------------------------
+      - SECRET_KEY=${SECRET_KEY}
+      - DEBUG=${DEBUG:-False}
+      - ALLOWED_HOSTS=${ALLOWED_HOSTS:-}
+      # -----------------------------------------------------------------------
+      # Database — MySQL connection
+      # -----------------------------------------------------------------------
+      - DB_ENGINE=django.db.backends.mysql
       - DB_NAME=${DB_NAME:-legacypeople}
       - DB_USER=${DB_USER:-django}
       - DB_PASSWORD=${DB_PASSWORD:-django}
