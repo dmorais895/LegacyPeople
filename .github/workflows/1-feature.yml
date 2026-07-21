@@ -49,11 +49,11 @@ jobs:
       # DB_ENGINE=sqlite3 avoids connection attempts to external databases.
       - name: Lint with pylint
         env:
-          DJANGO_SETTINGS_MODULE: config.settings
+          DJANGO_SETTINGS_MODULE: core.settings
           DB_ENGINE: django.db.backends.sqlite3
         run: |
           pylint --load-plugins=pylint_django \
-                 --django-settings-module=config.settings \
+                 --django-settings-module=core.settings \
                  $(git ls-files '*.py' | grep -v 'migrations/')
 
       # Run the test suite using SQLite so no external service is needed.
