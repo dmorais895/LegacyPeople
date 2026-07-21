@@ -190,6 +190,28 @@ class LegacyPeopleAuthAndDashboardTests(TestCase):
         self.assertEqual(response.context['feelings_distribution'][1], 1)
         self.assertEqual(response.context['feelings_distribution'][5], 1)
 
+    def test_dashboard_no_gc_count_color_coding(self):
+        """Test dynamic color coding for Sem Grupo de Crescimento stat card."""
+        self.client.login(username='testadmin', password='password123')
+
+        # Test no_gc_count == 1 (1-4 -> text-warning)
+        response_warning = self.client.get(reverse('legacy_people:dashboard'))
+        self.assertContains(response_warning, 'text-warning')
+
+        # Test no_gc_count == 0 (0 -> text-success)
+        Person.objects.filter(has_gc=False).update(has_gc=True)
+        response_success = self.client.get(reverse('legacy_people:dashboard'))
+        self.assertContains(response_success, 'text-success')
+
+        # Test no_gc_count >= 5 (5+ -> text-danger)
+        for i in range(10, 16):
+            Person.objects.create(
+                name=f"No GC User {i}", email=f"nogc{i}@ex.com", whatsapp=f"+551199999{i:04d}",
+                has_gc=False, time_lagoinha="menos_6_meses", feeling=1
+            )
+        response_danger = self.client.get(reverse('legacy_people:dashboard'))
+        self.assertContains(response_danger, 'text-danger')
+
     def test_dashboard_feeling_filter(self):
         """Test filtering dashboard people list by feeling."""
         self.client.login(username='testadmin', password='password123')
@@ -249,3 +271,13 @@ class LegacyPeopleAuthAndDashboardTests(TestCase):
         self.assertEqual(json_data['page'], 2)
         self.assertEqual(json_data['num_pages'], 2)
         self.assertEqual(len(json_data['prayers']), 5)
+
+    def test_dashboard_feeling_ajax_filter(self):
+        """Test that feeling_ajax=1 returns JsonResponse with filtered people list."""
+        self.client.login(username='testadmin', password='password123')
+        response = self.client.get(reverse('legacy_people:dashboard') + '?feeling_ajax=1&feeling=1')
+        self.assertEqual(response.status_code, 200)
+        json_data = response.json()
+        self.assertEqual(json_data['selected_feeling'], 1)
+        self.assertEqual(len(json_data['people']), 1)
+        self.assertEqual(json_data['people'][0]['name'], 'Person 1')
