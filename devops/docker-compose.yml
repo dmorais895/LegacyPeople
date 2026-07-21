@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: devops/Dockerfile
+    container_name: legacypeople_app
+    restart: always
+    ports:
+      - "8000:8000"
+    environment:
+      - DB_NAME=${DB_NAME:-legacypeople}
+      - DB_USER=${DB_USER:-django}
+      - DB_PASSWORD=${DB_PASSWORD:-django}
+      - DB_HOST=db
+      - DB_PORT=3306
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: mysql:8.0
+    container_name: legacypeople_db
+    restart: always
+    environment:
+      MYSQL_DATABASE: ${DB_NAME:-legacypeople}
+      MYSQL_USER: ${DB_USER:-django}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-django}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root}
+    ports:
+      - "3306:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+volumes:
+  mysql_data:
