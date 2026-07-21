@@ -1,10 +1,11 @@
 @use 'variables' as vars;
 
 /* Form Elements */
-.glass-input {
-    background: rgba(0, 0, 0, 0.2) !important;
-    border: 1px solid rgba(255, 255, 255, 0.1) !important;
-    color: vars.$text-light !important;
+.glass-panel .glass-input,
+form .glass-input {
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: vars.$text-light;
     backdrop-filter: blur(10px);
     border-radius: 10px;
     padding: 12px 15px;
@@ -13,11 +14,13 @@
         color: rgba(255, 255, 255, 0.5);
     }
 
+    // Fix: replace outline:none with custom visible focus ring (WCAG 2.4.7)
     &:focus {
-        background: rgba(0, 0, 0, 0.4) !important;
-        border-color: rgba(255, 255, 255, 0.4) !important;
-        box-shadow: 0 0 15px rgba(255, 255, 255, 0.1) !important;
-        outline: none;
+        background: rgba(0, 0, 0, 0.4);
+        border-color: rgba(255, 255, 255, 0.4);
+        box-shadow: 0 0 15px rgba(255, 255, 255, 0.1);
+        outline: 2px solid rgba(255, 255, 255, 0.6);
+        outline-offset: 2px;
     }
 }
 
@@ -31,7 +34,8 @@
     padding: 10px 30px;
     font-weight: 600;
     letter-spacing: 1px;
-    transition: all 0.3s ease;
+    // Fix: transition only changed properties instead of 'all' (performance)
+    transition: background 0.3s ease, transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
 
     &:hover {
         background: rgba(255, 255, 255, 0.25);
@@ -39,5 +43,11 @@
         color: vars.$text-light;
         transform: translateY(-3px);
         box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25), 0 0 15px rgba(234, 153, 162, 0.4);
+    }
+
+    // Fix: visible focus ring for keyboard navigation
+    &:focus-visible {
+        outline: 2px solid rgba(255, 255, 255, 0.8);
+        outline-offset: 3px;
     }
 }

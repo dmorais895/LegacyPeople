@@ -7,25 +7,41 @@ body {
     min-height: 100vh;
     font-family: vars.$font-family;
     margin: 0;
+
+    // Fix: background-attachment: fixed is buggy on iOS/Safari WebKit
+    @supports (-webkit-touch-callout: none) {
+        background-attachment: scroll;
+    }
 }
 
 /* Glass/Acrylic Panels */
 .glass-panel {
     background: vars.$glass-bg;
-    backdrop-filter: blur(vars.$glass-blur);
-    -webkit-backdrop-filter: blur(vars.$glass-blur);
+    // Fix: use reduced blur on mobile for GPU performance
+    backdrop-filter: blur(vars.$glass-blur-mobile);
+    -webkit-backdrop-filter: blur(vars.$glass-blur-mobile);
     border: 1px solid vars.$glass-border;
     border-radius: 20px;
     box-shadow: 0 15px 35px rgba(0, 0, 0, 0.4);
     color: vars.$text-light;
+
+    @media (min-width: 768px) {
+        backdrop-filter: blur(vars.$glass-blur);
+        -webkit-backdrop-filter: blur(vars.$glass-blur);
+    }
 }
 
 /* Navbar */
 .navbar-glass {
     background: rgba(0, 0, 0, 0.4) !important;
-    backdrop-filter: blur(15px);
-    -webkit-backdrop-filter: blur(15px);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+
+    @media (min-width: 768px) {
+        backdrop-filter: blur(15px);
+        -webkit-backdrop-filter: blur(15px);
+    }
 }
 
 .navbar-brand {
