@@ -17,11 +17,20 @@ jobs:
       contents: read
       packages: write
     steps:
-      - name: Checkout develop branch
+      # Checkout using the exact merge commit SHA that GitHub created on develop.
+      # This is unambiguous: it's the commit that now lives on develop after the merge,
+      # regardless of whether GitHub used fast-forward or a merge commit strategy.
+      - name: Checkout develop at merge commit
         uses: actions/checkout@v4
         with:
-          ref: develop
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
           fetch-depth: 0
+
+      - name: Verify checked out branch is develop
+        run: |
+          echo "Checked out SHA: $(git rev-parse HEAD)"
+          echo "Expected merge SHA: ${{ github.event.pull_request.merge_commit_sha }}"
+          git log --oneline -3
 
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
