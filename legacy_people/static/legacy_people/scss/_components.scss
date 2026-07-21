@@ -3,8 +3,8 @@
 /* Form Elements */
 .glass-panel .glass-input,
 form .glass-input {
-    background: rgba(0, 0, 0, 0.2);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid vars.$glass-border-subtle;
     color: vars.$text-light;
     backdrop-filter: blur(10px);
     border-radius: 10px;
@@ -16,18 +16,18 @@ form .glass-input {
 
     // Fix: replace outline:none with custom visible focus ring (WCAG 2.4.7)
     &:focus {
-        background: rgba(0, 0, 0, 0.4);
-        border-color: rgba(255, 255, 255, 0.4);
-        box-shadow: 0 0 15px rgba(255, 255, 255, 0.1);
-        outline: 2px solid rgba(255, 255, 255, 0.6);
+        background: rgba(0, 0, 0, 0.6);
+        border-color: vars.$accent-yellow;
+        box-shadow: 0 0 15px rgba(vars.$accent-yellow, 0.35);
+        outline: 2px solid vars.$accent-yellow;
         outline-offset: 2px;
     }
 }
 
 /* Buttons */
 .btn-glass {
-    background: rgba(255, 255, 255, 0.15);
-    border: 1px solid rgba(255, 255, 255, 0.3);
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid vars.$accent-yellow;
     color: vars.$text-light;
     backdrop-filter: blur(10px);
     border-radius: 30px;
@@ -38,11 +38,11 @@ form .glass-input {
     transition: background 0.3s ease, transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease, color 0.3s ease;
 
     &:hover {
-        background: rgba(255, 255, 255, 0.25);
-        border-color: vars.$text-light;
+        background: rgba(vars.$accent-yellow, 0.2);
+        border-color: vars.$accent-yellow;
         color: vars.$text-light;
         transform: translateY(-3px);
-        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25), 0 0 15px rgba(234, 153, 162, 0.4);
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.6), 0 0 15px rgba(vars.$accent-yellow, 0.4);
     }
 
     // Small variant override for compact single-row layouts
@@ -56,16 +56,16 @@ form .glass-input {
     // Unified active state for selection buttons (Todos and Feelings 1..5)
     &.active,
     &.btn-glass-active {
-        background: rgba(255, 255, 255, 0.95);
-        border-color: vars.$text-light;
-        color: #121212 !important;
+        background: vars.$accent-yellow;
+        border-color: vars.$accent-yellow;
+        color: #000000 !important;
         font-weight: 700;
-        box-shadow: 0 0 15px rgba(255, 255, 255, 0.5);
+        box-shadow: 0 0 20px rgba(vars.$accent-yellow, 0.6);
     }
 
     // Fix: visible focus ring for keyboard navigation
     &:focus-visible {
-        outline: 2px solid rgba(255, 255, 255, 0.8);
+        outline: 2px solid vars.$accent-yellow;
         outline-offset: 3px;
     }
 }
@@ -78,16 +78,16 @@ form .glass-input {
     }
 
     &::-webkit-scrollbar-track {
-        background: rgba(0, 0, 0, 0.2);
+        background: rgba(0, 0, 0, 0.4);
         border-radius: 10px;
     }
 
     &::-webkit-scrollbar-thumb {
-        background: rgba(255, 255, 255, 0.25);
+        background: rgba(vars.$accent-yellow, 0.4);
         border-radius: 10px;
 
         &:hover {
-            background: rgba(255, 255, 255, 0.4);
+            background: vars.$accent-yellow;
         }
     }
 }
