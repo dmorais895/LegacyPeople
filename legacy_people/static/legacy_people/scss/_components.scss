@@ -1,0 +1,43 @@
+@use 'variables' as vars;
+
+/* Form Elements */
+.glass-input {
+    background: rgba(0, 0, 0, 0.2) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    color: vars.$text-light !important;
+    backdrop-filter: blur(10px);
+    border-radius: 10px;
+    padding: 12px 15px;
+
+    &::placeholder {
+        color: rgba(255, 255, 255, 0.5);
+    }
+
+    &:focus {
+        background: rgba(0, 0, 0, 0.4) !important;
+        border-color: rgba(255, 255, 255, 0.4) !important;
+        box-shadow: 0 0 15px rgba(255, 255, 255, 0.1) !important;
+        outline: none;
+    }
+}
+
+/* Buttons */
+.btn-glass {
+    background: rgba(255, 255, 255, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: vars.$text-light;
+    backdrop-filter: blur(10px);
+    border-radius: 30px;
+    padding: 10px 30px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    transition: all 0.3s ease;
+
+    &:hover {
+        background: rgba(255, 255, 255, 0.25);
+        border-color: vars.$text-light;
+        color: vars.$text-light;
+        transform: translateY(-3px);
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25), 0 0 15px rgba(234, 153, 162, 0.4);
+    }
+}

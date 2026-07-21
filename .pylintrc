@@ -1,6 +1,8 @@
 [MASTER]
 load-plugins=pylint_django
 django-settings-module=core.settings
+ignore=migrations,Dockerfile,static,venv
+ignore-paths=^.*migrations.*$,^.*venv.*$
 
 [MESSAGES CONTROL]
 disable=

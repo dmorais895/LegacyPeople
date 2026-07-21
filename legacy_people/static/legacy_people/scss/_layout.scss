@@ -1,0 +1,44 @@
+@use 'variables' as vars;
+
+body {
+    background: linear-gradient(135deg, vars.$bg-gradient-start 0%, vars.$bg-gradient-mid 50%, vars.$bg-gradient-end 100%);
+    background-attachment: fixed;
+    color: vars.$text-light;
+    min-height: 100vh;
+    font-family: vars.$font-family;
+    margin: 0;
+}
+
+/* Glass/Acrylic Panels */
+.glass-panel {
+    background: vars.$glass-bg;
+    backdrop-filter: blur(vars.$glass-blur);
+    -webkit-backdrop-filter: blur(vars.$glass-blur);
+    border: 1px solid vars.$glass-border;
+    border-radius: 20px;
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.4);
+    color: vars.$text-light;
+}
+
+/* Navbar */
+.navbar-glass {
+    background: rgba(0, 0, 0, 0.4) !important;
+    backdrop-filter: blur(15px);
+    -webkit-backdrop-filter: blur(15px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.navbar-brand {
+    color: vars.$text-light !important;
+    text-shadow: 0 2px 8px vars.$text-shadow-color;
+    letter-spacing: 1px;
+}
+
+/* Text styles */
+.text-glass {
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
+}
+
+.text-glass-light {
+    color: vars.$text-light-opacity;
+}

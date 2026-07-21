@@ -34,3 +34,12 @@ class LegacyPeopleViewTests(TestCase):
         """Test that the main form contains a CSRF token for security."""
         response = self.client.get(reverse('legacy_people:main_form'))
         self.assertContains(response, 'csrfmiddlewaretoken')
+
+    def test_responsiveness_classes_in_templates(self):
+        """Test that Bootstrap responsive classes are used in the templates."""
+        response_landing = self.client.get(reverse('legacy_people:landing'))
+        self.assertContains(response_landing, 'col-md-')
+
+        response_form = self.client.get(reverse('legacy_people:main_form'))
+        self.assertContains(response_form, 'col-md-')
+        self.assertContains(response_form, 'col-lg-')
