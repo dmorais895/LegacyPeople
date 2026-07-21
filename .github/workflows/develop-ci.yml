@@ -2,7 +2,7 @@ name: Develop CI
 
 on:
   pull_request:
-    types: [closed]
+    types: closed
     branches:
       - "develop"
 
@@ -10,6 +10,8 @@ jobs:
   build-image:
     name: Build and Push Docker Image
     runs-on: ubuntu-latest
+    # Only run when the PR was actually merged, not just closed/declined.
+    if: github.event.pull_request.merged == true
     permissions:
       contents: read
       packages: write
