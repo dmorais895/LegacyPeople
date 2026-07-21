@@ -1,0 +1,46 @@
+name: 2 - DEVELOP
+
+on:
+  pull_request:
+    types: closed
+    branches:
+      - "develop"
+
+jobs:
+  build-image:
+    name: Build and Push Docker Image
+    runs-on: ubuntu-latest
+    # Only run when the PR was actually merged, not just closed/declined.
+    if: github.event.pull_request.merged == true
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Lowercase repository name for Docker image
+        run: |
+          echo "IMAGE_NAME=$(echo "ghcr.io/${{ github.repository }}" | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and Push Docker Image to GHCR
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./devops/Dockerfile
+          push: true
+          tags: |
+            ${{ env.IMAGE_NAME }}:develop
+            ${{ env.IMAGE_NAME }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
