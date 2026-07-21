@@ -28,7 +28,7 @@ main {
     -webkit-backdrop-filter: blur(vars.$glass-blur-mobile);
     border: 1px solid vars.$glass-border;
     border-radius: 20px;
-    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.4);
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.8), 0 0 15px rgba(vars.$accent-yellow, 0.15);
     color: vars.$text-light;
 
     @media (min-width: 768px) {
@@ -39,10 +39,10 @@ main {
 
 /* Navbar */
 .navbar-glass {
-    background: rgba(0, 0, 0, 0.4) !important;
+    background: rgba(7, 7, 8, 0.9) !important;
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    border-bottom: 1px solid vars.$glass-border;
 
     @media (min-width: 768px) {
         backdrop-filter: blur(15px);
@@ -51,17 +51,17 @@ main {
 }
 
 .navbar-brand {
-    color: vars.$text-light !important;
-    text-shadow: 0 2px 8px vars.$text-shadow-color;
+    color: vars.$accent-yellow !important;
+    text-shadow: 0 2px 8px rgba(vars.$accent-yellow, 0.5);
     letter-spacing: 1px;
 }
 
 /* Footer matching navbar-glass layout */
 .footer-glass {
-    background: rgba(0, 0, 0, 0.4) !important;
+    background: rgba(7, 7, 8, 0.9) !important;
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    border-top: 1px solid vars.$glass-border;
     color: vars.$text-light;
 
     @media (min-width: 768px) {
@@ -72,7 +72,7 @@ main {
 
 /* Text styles */
 .text-glass {
-    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
 }
 
 .text-glass-light {
