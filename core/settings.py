@@ -26,13 +26,26 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-k(%20qx565i+wvrd%+x+bn9#2gk%!5nd_e0*69#xx%gy=!y02r')
+# SECURITY: SECRET_KEY must be set via environment variable. No hardcoded fallback in production.
+SECRET_KEY = os.environ.get('SECRET_KEY')
+if not SECRET_KEY:
+    # Only allow an insecure fallback in local development (DEBUG=True).
+    # In CI/production this will raise an error if SECRET_KEY is not set.
+    _debug_flag = os.getenv('DEBUG', 'False') == 'True'
+    if _debug_flag:
+        SECRET_KEY = 'django-insecure-dev-only-key-change-in-production'  # nosec
+    else:
+        raise RuntimeError(
+            "SECRET_KEY environment variable is required in non-debug mode. "
+            "Please set it in your .env file or server environment."
+        )
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.getenv('DEBUG', 'True') == 'True'
+DEBUG = os.getenv('DEBUG', 'False') == 'True'
 
-ALLOWED_HOSTS = []
+# SECURITY: ALLOWED_HOSTS must be explicitly set via env. Empty list causes 400 in production.
+_ALLOWED_HOSTS_ENV = os.getenv('ALLOWED_HOSTS', '')
+_parsed_hosts = [h.strip() for h in _ALLOWED_HOSTS_ENV.split(',') if h.strip()]
+ALLOWED_HOSTS = _parsed_hosts if _parsed_hosts else (['*'] if DEBUG else [])
 
 
 # Application definition
@@ -120,9 +133,9 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/4.2/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
+LANGUAGE_CODE = 'pt-br'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'America/Fortaleza'
 
 USE_I18N = True
 
@@ -152,3 +165,36 @@ COMPRESS_PRECOMPILERS = (
 )
 
 LOGIN_URL = 'legacy_people:login'
+
+# -------------------------------------------------------------------
+# SECURITY HARDENING
+# -------------------------------------------------------------------
+
+# Session cookie: only sent over HTTPS in production
+SESSION_COOKIE_SECURE = not DEBUG
+SESSION_COOKIE_HTTPONLY = True   # Prevent JS access to session cookie
+SESSION_COOKIE_SAMESITE = 'Lax'  # CSRF mitigation for cross-site requests
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True
+SESSION_COOKIE_AGE = 3600        # 1 hour maximum session lifetime
+
+# CSRF cookie hardening
+CSRF_COOKIE_SECURE = not DEBUG
+CSRF_COOKIE_HTTPONLY = True
+CSRF_COOKIE_SAMESITE = 'Lax'
+
+# Prevent browsers from guessing content type (MIME sniffing)
+SECURE_CONTENT_TYPE_NOSNIFF = True
+
+# Force HTTPS redirects in production (HTTP → HTTPS 301)
+SECURE_SSL_REDIRECT = not DEBUG
+
+# HTTP Strict Transport Security (HSTS) — 1 year in production
+SECURE_HSTS_SECONDS = 0 if DEBUG else 31536000
+SECURE_HSTS_INCLUDE_SUBDOMAINS = not DEBUG
+SECURE_HSTS_PRELOAD = not DEBUG
+
+# Clickjacking protection (also handled by XFrameOptionsMiddleware)
+X_FRAME_OPTIONS = 'DENY'
+
+# Referrer-Policy
+SECURE_REFERRER_POLICY = 'strict-origin-when-cross-origin'

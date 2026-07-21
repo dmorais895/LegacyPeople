@@ -5,6 +5,8 @@ body {
     background-attachment: fixed;
     color: vars.$text-light;
     min-height: 100vh;
+    display: flex;
+    flex-direction: column;
     font-family: vars.$font-family;
     margin: 0;
 
@@ -12,6 +14,10 @@ body {
     @supports (-webkit-touch-callout: none) {
         background-attachment: scroll;
     }
+}
+
+main {
+    flex: 1 0 auto;
 }
 
 /* Glass/Acrylic Panels */
@@ -48,6 +54,20 @@ body {
     color: vars.$text-light !important;
     text-shadow: 0 2px 8px vars.$text-shadow-color;
     letter-spacing: 1px;
+}
+
+/* Footer matching navbar-glass layout */
+.footer-glass {
+    background: rgba(0, 0, 0, 0.4) !important;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    color: vars.$text-light;
+
+    @media (min-width: 768px) {
+        backdrop-filter: blur(15px);
+        -webkit-backdrop-filter: blur(15px);
+    }
 }
 
 /* Text styles */
