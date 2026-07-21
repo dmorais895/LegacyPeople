@@ -1,0 +1,305 @@
+{% extends 'legacy_people/base.html' %}
+
+{% block content %}
+<div class="row mb-4 align-items-center">
+    <div class="col-md-8">
+        <h2 class="fw-bold text-glass mb-1">Dashboard de Acompanhamento</h2>
+        <p class="text-glass-light mb-0">Visão geral das respostas coletadas e métricas da comunidade.</p>
+    </div>
+    <div class="col-md-4 text-md-end mt-3 mt-md-0">
+        <!-- Manual Refresh Button -->
+        <a href="{% url 'legacy_people:dashboard' %}" class="btn btn-glass btn-sm">
+            🔄 Atualizar Dados
+        </a>
+    </div>
+</div>
+
+<!-- Stat Cards -->
+<div class="row g-4 mb-5">
+    <div class="col-md-4">
+        <div class="glass-panel p-4 text-center">
+            <h6 class="text-glass-light text-uppercase fw-semibold mb-2">Total de Respostas</h6>
+            <h2 class="display-5 fw-bold text-white mb-0">{{ total_people }}</h2>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="glass-panel p-4 text-center">
+            <h6 class="text-glass-light text-uppercase fw-semibold mb-2">Sem Grupo de Crescimento</h6>
+            <h2 class="display-5 fw-bold text-white mb-0">{{ no_gc_count }}</h2>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="glass-panel p-4 text-center">
+            <h6 class="text-glass-light text-uppercase fw-semibold mb-2">Gostariam de Conversar</h6>
+            <h2 class="display-5 fw-bold text-white mb-0">{{ wants_chat_count }}</h2>
+        </div>
+    </div>
+</div>
+
+<!-- Feeling Distribution Section: Pie Chart & Filter -->
+<div class="row g-4 mb-5">
+    <div class="col-lg-5">
+        <div class="glass-panel p-4 h-100">
+            <h5 class="fw-bold text-glass mb-4 text-center">Distribuição de Sentimentos</h5>
+            <div style="max-height: 280px;" class="d-flex justify-content-center">
+                <canvas id="feelingChart"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-7">
+        <div class="glass-panel p-4 h-100">
+            <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+                <h5 class="fw-bold text-glass mb-0">Filtrar Pessoas por Sentimento</h5>
+                <a href="{% url 'legacy_people:dashboard' %}" class="btn btn-glass btn-sm {% if not selected_feeling %}active{% endif %}">
+                    Todos
+                </a>
+            </div>
+            
+            <!-- Feeling Filter Buttons -->
+            <div class="d-flex flex-wrap gap-2 mb-4">
+                <a href="?feeling=1" class="btn btn-glass btn-sm {% if selected_feeling == 1 %}active{% endif %}">
+                    1 - Ótimo 😁 ({{ feelings_distribution.1 }})
+                </a>
+                <a href="?feeling=2" class="btn btn-glass btn-sm {% if selected_feeling == 2 %}active{% endif %}">
+                    2 - Bem 🙂 ({{ feelings_distribution.2 }})
+                </a>
+                <a href="?feeling=3" class="btn btn-glass btn-sm {% if selected_feeling == 3 %}active{% endif %}">
+                    3 - Neutro 😐 ({{ feelings_distribution.3 }})
+                </a>
+                <a href="?feeling=4" class="btn btn-glass btn-sm {% if selected_feeling == 4 %}active{% endif %}">
+                    4 - Não muito bem 😕 ({{ feelings_distribution.4 }})
+                </a>
+                <a href="?feeling=5" class="btn btn-glass btn-sm {% if selected_feeling == 5 %}active{% endif %}">
+                    5 - Mal 😔 ({{ feelings_distribution.5 }})
+                </a>
+            </div>
+
+            <!-- Profile Cards Grid -->
+            <div class="row g-3 pe-1" style="max-height: 320px; overflow-y: auto;">
+                {% for person in people_list %}
+                    <div class="col-md-6">
+                        <div class="glass-panel p-3 h-100 d-flex flex-column justify-content-between border-0" style="background: rgba(0, 0, 0, 0.25);">
+                            <div>
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <h6 class="fw-bold text-white mb-0 text-truncate" title="{{ person.name }}">{{ person.name }}</h6>
+                                    <span class="badge bg-dark text-glass-light border border-secondary ms-1">
+                                        {% if person.feeling == 1 %}1 - Ótimo 😁
+                                        {% elif person.feeling == 2 %}2 - Bem 🙂
+                                        {% elif person.feeling == 3 %}3 - Neutro 😐
+                                        {% elif person.feeling == 4 %}4 - Não muito bem 😕
+                                        {% elif person.feeling == 5 %}5 - Mal 😔
+                                        {% endif %}
+                                    </span>
+                                </div>
+                                <p class="text-glass-light small mb-3 text-truncate" title="{{ person.email }}">
+                                    <i class="bi bi-envelope me-1"></i>{{ person.email }}
+                                </p>
+                            </div>
+                            <div>
+                                <a href="https://wa.me/{{ person.whatsapp_clean }}" target="_blank" rel="noopener noreferrer" class="btn btn-success btn-sm w-100 rounded-pill fw-semibold shadow-sm text-uppercase">
+                                    <i class="bi bi-whatsapp me-2"></i>Conversar no WhatsApp
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                {% empty %}
+                    <div class="col-12 text-center text-glass-light py-4">
+                        Nenhuma pessoa encontrada para este filtro.
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Prayer Requests Section (Self-Contained AJAX Pagination - 10 per page) -->
+<div class="glass-panel p-4 mb-5">
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
+        <div>
+            <h5 class="fw-bold text-glass mb-1">
+                <i class="bi bi-heart-pulse me-2"></i>Pedidos de Oração
+            </h5>
+            <p class="text-glass-light small mb-0">Lista agregada dos pedidos de oração (máximo 10 por página).</p>
+        </div>
+        <div id="prayerPageBadge">
+            {% if prayers_page.paginator.num_pages > 1 %}
+                <span class="badge bg-dark text-glass-light border border-secondary">
+                    Página {{ prayers_page.number }} de {{ prayers_page.paginator.num_pages }}
+                </span>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Prayer Cards Container (Fixed Height Cards with Custom Scrollbar) -->
+    <div class="row g-3 mb-4" id="prayerCardsContainer">
+        {% for person in prayers_page %}
+            <div class="col-md-6">
+                <div class="glass-panel p-3 border-0 d-flex flex-column justify-content-between" style="background: rgba(0, 0, 0, 0.25); height: 130px;">
+                    <div>
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <h6 class="fw-bold text-white mb-0 text-truncate" title="{{ person.name }}">{{ person.name }}</h6>
+                            <small class="text-glass-light opacity-75 ms-2 text-nowrap">{{ person.created_at|date:"d/m/Y H:i" }}</small>
+                        </div>
+                        <div class="custom-scrollbar pe-1" style="max-height: 75px; overflow-y: auto;">
+                            <p class="text-glass-light small mb-0" style="white-space: pre-wrap;">{{ person.prayer_request }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% empty %}
+            <div class="col-12 text-center text-glass-light py-4">
+                Nenhum pedido de oração registrado até o momento.
+            </div>
+        {% endfor %}
+    </div>
+
+    <!-- Numbered Pagination Controls [1, 2, ...] (AJAX without page reload) -->
+    <div id="prayerPaginationContainer">
+        {% if prayers_page.paginator.num_pages > 1 %}
+            <nav aria-label="Navegação de páginas dos pedidos de oração">
+                <ul class="pagination pagination-sm justify-content-center mb-0 gap-1">
+                    {% for page_num in prayers_page.paginator.page_range %}
+                        <li class="page-item {% if page_num == prayers_page.number %}active{% endif %}">
+                            <button class="page-link {% if page_num == prayers_page.number %}bg-light text-dark fw-bold border-light{% else %}btn-glass text-white{% endif %} rounded-circle px-3 py-1" onclick="fetchPrayerPage({{ page_num }})">
+                                {{ page_num }}
+                            </button>
+                        </li>
+                    {% endfor %}
+                </ul>
+            </nav>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+    function fetchPrayerPage(pageNum) {
+        fetch('?page=' + pageNum + '&ajax=1')
+            .then(response => response.json())
+            .then(data => {
+                const container = document.getElementById('prayerCardsContainer');
+                if (data.prayers.length === 0) {
+                    container.innerHTML = `
+                        <div class="col-12 text-center text-glass-light py-4">
+                            Nenhum pedido de oração registrado até o momento.
+                        </div>`;
+                } else {
+                    container.innerHTML = data.prayers.map(p => `
+                        <div class="col-md-6">
+                            <div class="glass-panel p-3 border-0 d-flex flex-column justify-content-between" style="background: rgba(0, 0, 0, 0.25); height: 130px;">
+                                <div>
+                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                        <h6 class="fw-bold text-white mb-0 text-truncate" title="${p.name}">${p.name}</h6>
+                                        <small class="text-glass-light opacity-75 ms-2 text-nowrap">${p.created_at}</small>
+                                    </div>
+                                    <div class="custom-scrollbar pe-1" style="max-height: 75px; overflow-y: auto;">
+                                        <p class="text-glass-light small mb-0" style="white-space: pre-wrap;">${p.prayer_request}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('');
+                }
+
+                // Update Badge
+                const badgeContainer = document.getElementById('prayerPageBadge');
+                if (data.num_pages > 1) {
+                    badgeContainer.innerHTML = `<span class="badge bg-dark text-glass-light border border-secondary">Página ${data.page} de ${data.num_pages}</span>`;
+                } else {
+                    badgeContainer.innerHTML = '';
+                }
+
+                // Update Pagination Controls
+                const pagContainer = document.getElementById('prayerPaginationContainer');
+                if (data.num_pages > 1) {
+                    let pageItems = data.page_range.map(p => `
+                        <li class="page-item ${p === data.page ? 'active' : ''}">
+                            <button class="page-link ${p === data.page ? 'bg-light text-dark fw-bold border-light' : 'btn-glass text-white'} rounded-circle px-3 py-1" onclick="fetchPrayerPage(${p})">
+                                ${p}
+                            </button>
+                        </li>
+                    `).join('');
+                    pagContainer.innerHTML = `
+                        <nav aria-label="Navegação de páginas dos pedidos de oração">
+                            <ul class="pagination pagination-sm justify-content-center mb-0 gap-1">
+                                ${pageItems}
+                            </ul>
+                        </nav>`;
+                } else {
+                    pagContainer.innerHTML = '';
+                }
+            })
+            .catch(err => console.error('Erro ao carregar pedidos de oração:', err));
+    }
+
+    document.addEventListener("DOMContentLoaded", function() {
+        const ctx = document.getElementById('feelingChart').getContext('2d');
+        const feelingData = [
+            {{ feelings_distribution.1 }},
+            {{ feelings_distribution.2 }},
+            {{ feelings_distribution.3 }},
+            {{ feelings_distribution.4 }},
+            {{ feelings_distribution.5 }}
+        ];
+
+        new Chart(ctx, {
+            type: 'pie',
+            plugins: [ChartDataLabels],
+            data: {
+                labels: ['1 - Ótimo 😁', '2 - Bem 🙂', '3 - Neutro 😐', '4 - Não muito bem 😕', '5 - Mal 😔'],
+                datasets: [{
+                    data: feelingData,
+                    backgroundColor: [
+                        '#48bb78', // Green for Ótimo
+                        '#4299e1', // Blue for Bem
+                        '#ecc94b', // Yellow for Neutro
+                        '#ed8936', // Orange for Não muito bem
+                        '#f56565'  // Red for Mal
+                    ],
+                    borderWidth: 1,
+                    borderColor: 'rgba(255, 255, 255, 0.2)'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            color: '#ffffff',
+                            font: {
+                                family: 'Inter'
+                            }
+                        }
+                    },
+                    datalabels: {
+                        color: '#ffffff',
+                        font: {
+                            weight: 'bold',
+                            family: 'Inter',
+                            size: 13
+                        },
+                        formatter: (value, ctx) => {
+                            const sum = ctx.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
+                            if (sum === 0 || value === 0) return '';
+                            const percentage = ((value * 100) / sum).toFixed(1) + '%';
+                            return percentage;
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const label = context.label || '';
+                                const value = context.raw || 0;
+                                const sum = context.dataset.data.reduce((a, b) => a + b, 0);
+                                const percentage = sum > 0 ? ((value / sum) * 100).toFixed(1) + '%' : '0%';
+                                return ` ${label}: ${value} (${percentage})`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    });
+</script>
+{% endblock %}
