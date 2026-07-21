@@ -37,3 +37,8 @@ Thumbs.db
 .idea/
 *.swp
 *.swo
+
+# Node & Frontend
+node_modules/
+.sass-cache/
+npm-debug.log

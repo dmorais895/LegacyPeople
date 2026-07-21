@@ -144,5 +144,5 @@ STATICFILES_FINDERS = [
 ]
 
 COMPRESS_PRECOMPILERS = (
-    ('text/x-scss', 'django_libsass.SassCompiler'),
+    ('text/x-scss', 'npx sass {infile} {outfile}'),
 )
