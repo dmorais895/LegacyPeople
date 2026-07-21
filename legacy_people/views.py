@@ -2,10 +2,41 @@ from django.shortcuts import render, redirect
 from django.contrib.auth import login, logout, authenticate
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
+from django.core.cache import cache
 from django.core.paginator import Paginator
 from django.http import JsonResponse
 from .forms import PersonForm
 from .models import Person
+
+# Brute-force / rate-limit configuration
+_MAX_LOGIN_ATTEMPTS = 5      # Maximum failed attempts before lockout
+_LOCKOUT_WINDOW = 15 * 60    # Lockout duration in seconds (15 minutes)
+
+
+def _get_client_ip(request):
+    """Extract the real client IP, respecting reverse-proxy X-Forwarded-For."""
+    x_forwarded = request.META.get('HTTP_X_FORWARDED_FOR')
+    if x_forwarded:
+        return x_forwarded.split(',')[0].strip()
+    return request.META.get('REMOTE_ADDR', '0.0.0.0')
+
+
+def _is_ip_locked(ip):
+    """Return True if the IP has exceeded the maximum failed login attempts."""
+    attempts = cache.get(f'login_attempts_{ip}', 0)
+    return attempts >= _MAX_LOGIN_ATTEMPTS
+
+
+def _register_failed_attempt(ip):
+    """Increment the failed-attempt counter for an IP within the lockout window."""
+    cache_key = f'login_attempts_{ip}'
+    attempts = cache.get(cache_key, 0)
+    cache.set(cache_key, attempts + 1, timeout=_LOCKOUT_WINDOW)
+
+
+def _clear_failed_attempts(ip):
+    """Reset the failed-attempt counter for an IP after a successful login."""
+    cache.delete(f'login_attempts_{ip}')
 
 FEELING_MAP = {
     1: ('Ótimo', 'bi-emoji-laughing'),
@@ -33,19 +64,39 @@ def main_form(request):
     return render(request, 'legacy_people/main_form.html', {'form': form})
 
 def login_view(request):
-    """Render and process administrative login."""
+    """Render and process administrative login with brute-force protection."""
     if request.user.is_authenticated:
         return redirect('legacy_people:dashboard')
 
+    client_ip = _get_client_ip(request)
+
+    if _is_ip_locked(client_ip):
+        return render(request, 'legacy_people/login.html', {
+            'locked': True,
+            'lockout_minutes': _LOCKOUT_WINDOW // 60,
+        })
+
     if request.method == 'POST':
-        username = request.POST.get('username')
-        password = request.POST.get('password')
+        username = request.POST.get('username', '').strip()
+        password = request.POST.get('password', '')
         user = authenticate(request, username=username, password=password)
         if user is not None:
+            _clear_failed_attempts(client_ip)
             login(request, user)
             messages.success(request, 'Login realizado com sucesso.')
             return redirect('legacy_people:dashboard')
-        messages.error(request, 'Usuário ou senha inválidos.')
+
+        _register_failed_attempt(client_ip)
+        remaining = _MAX_LOGIN_ATTEMPTS - cache.get(f'login_attempts_{client_ip}', 0)
+        if remaining <= 0:
+            return render(request, 'legacy_people/login.html', {
+                'locked': True,
+                'lockout_minutes': _LOCKOUT_WINDOW // 60,
+            })
+        messages.error(
+            request,
+            f'Usuário ou senha inválidos. Tentativas restantes: {remaining}.'
+        )
 
     return render(request, 'legacy_people/login.html')
 

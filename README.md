@@ -1,6 +1,6 @@
 # LegacyPeople
 
-Uma aplicação web monolítica desenvolvida em Python e Django para a gestão, acolhimento e acompanhamento de pessoas e membros da igreja (Ministério Legacy / Lagoinha). O objetivo da aplicação é capturar informações fundamentais dos visitantes e membros (dados de contato, participação em Grupos de Crescimento, acompanhamento emocional, pedidos de oração e feedback sobre os cultos) de forma intuitiva, moderna e responsiva.
+Uma aplicação web monolítica desenvolvida em **Python** e **Django** para a gestão, acolhimento e acompanhamento de pessoas e membros da igreja (Ministério Legacy / Lagoinha). O objetivo da aplicação é capturar informações fundamentais dos visitantes e membros — dados de contato, participação em Grupos de Crescimento, acompanhamento emocional, pedidos de oração e feedback sobre os cultos — de forma intuitiva, moderna e responsiva.
 
 ---
 
@@ -18,14 +18,21 @@ O projeto segue a arquitetura de **Monólito Django**, priorizando simplicidade 
 - **WhiteNoise**: Servidor de arquivos estáticos de alta performance integrado ao Django.
 
 #### **Frontend & UI/UX**
-- **Bootstrap 5**: Layouts responsivos e grid do sistema.
+- **Bootstrap 5 + Bootstrap Icons**: Layouts responsivos, grid do sistema e ícones vetoriais.
 - **Dart Sass (SCSS)**: Arquitetura modular de estilos (`_variables.scss`, `_layout.scss`, `_components.scss`) utilizando o padrão moderno `@use`.
 - **Django Compressor**: Pré-compilação e minificação automática de SCSS/CSS.
 - **Design System Glassmorphism**: Interface visual em tons suaves de acrílico e gradientes avermelhados, totalmente responsiva.
 
+#### **Segurança**
+- Proteção contra **Brute Force** no login (rate limiting por IP via Django Cache).
+- Sanitização de campos via `strip_tags()` e validações de comprimento máximo para prevenção de **XSS Stored** e **DoS**.
+- Escape de dados do servidor no frontend (função `esc()`) para prevenção de **XSS Client-Side**.
+- **CSRF**, **Clickjacking** (`X-Frame-Options: DENY`) e **HSTS** configurados.
+- Flags seguras nos cookies de sessão e CSRF (`HttpOnly`, `SameSite`, `Secure`).
+
 #### **Qualidade de Código & Testes**
 - **Pylint & pylint-django**: Análise estática com nota máxima de qualidade (**10.00 / 10**).
-- **Django Test Runner**: Suíte de testes automatizados integrada cobrindo regras de negócio, validações de formulário (WhatsApp, E-mail) e rotas.
+- **Django Test Runner**: Suíte com **30 testes automatizados** cobrindo regras de negócio, validações de formulário, segurança e rate limiting.
 
 #### **DevOps & CI/CD**
 - **Docker & Docker Compose**: Conteinerização de produção e desenvolvimento isolado.
@@ -35,14 +42,42 @@ O projeto segue a arquitetura de **Monólito Django**, priorizando simplicidade 
 
 ---
 
-## 📋 Pré-requisitos e Dependências
+## 📋 Pré-requisitos
 
-Para executar o projeto localmente ou em containers, você precisará das seguintes dependências instaladas na sua máquina:
+| Dependência | Versão mínima | Necessidade |
+|---|---|---|
+| Python | 3.12+ | Sempre necessário |
+| pip | Última | Sempre necessário |
+| Node.js + npm | 20+ | Sempre necessário (compilador Dart Sass via `npx sass`) |
+| MySQL | 8.0 | Apenas para banco MySQL (opcional em dev com SQLite) |
+| Docker + Docker Compose | Qualquer | Apenas para rodar via containers |
 
-1. **Python 3.12+** e **pip**
-2. **Node.js 20+** e **npm** (necessário para o compilador do Dart Sass via `npx sass`)
-3. **MySQL 8.0** (ou executá-lo via Docker)
-4. **Docker** e **Docker Compose** *(opcional, mas recomendado)*
+---
+
+## ⚙️ Configuração do Ambiente (`.env`)
+
+A aplicação usa variáveis de ambiente para todas as configurações sensíveis. **Antes de executar**, crie seu `.env` a partir do arquivo de exemplo:
+
+```bash
+cp .env.example .env
+```
+
+Em seguida, edite o `.env` gerado. Abaixo está a referência completa de cada variável:
+
+| Variável | Obrigatória | Padrão | Descrição |
+|---|---|---|---|
+| `SECRET_KEY` | ✅ Sim | — | Chave criptográfica do Django. Gere com `python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"` |
+| `DEBUG` | ✅ Sim | `False` | `True` em desenvolvimento. **Nunca `True` em produção.** |
+| `ALLOWED_HOSTS` | Prod. | `*` (quando DEBUG=True) | Hosts permitidos, separados por vírgula. Ex: `legacypeople.com.br` |
+| `DB_ENGINE` | Não | `django.db.backends.mysql` | Use `django.db.backends.sqlite3` para desenvolvimento sem MySQL |
+| `DB_NAME` | MySQL | `legacypeople` | Nome do banco de dados MySQL |
+| `DB_USER` | MySQL | `django` | Usuário do banco de dados MySQL |
+| `DB_PASSWORD` | MySQL | `django` | Senha do usuário MySQL |
+| `DB_HOST` | MySQL | `127.0.0.1` | Host do servidor MySQL |
+| `DB_PORT` | MySQL | `3306` | Porta do servidor MySQL |
+| `DB_ROOT_PASSWORD` | Docker | `root` | Senha root do MySQL (usado apenas no Docker Compose) |
+
+> **Dica para desenvolvimento rápido com SQLite:** defina `DB_ENGINE=django.db.backends.sqlite3` e as variáveis `DB_*` de MySQL podem ser ignoradas.
 
 ---
 
@@ -50,69 +85,190 @@ Para executar o projeto localmente ou em containers, você precisará das seguin
 
 Você pode rodar o ambiente de desenvolvimento de duas formas:
 
-### Opção 1: Rodando via Docker Compose (Recomendado)
+---
 
-Esta forma sobe automaticamente o container da aplicação e o container do banco de dados MySQL 8.0 pré-configurado.
+### Opção 1: Localmente com SQLite (Mais Rápido)
 
-1. **Clone o repositório:**
-   ```bash
-   git clone https://github.com/dmorais895/LegacyPeople.git
-   cd LegacyPeople
-   ```
+Ideal para desenvolvimento rápido, **sem necessidade de MySQL ou Docker**.
 
-2. **Inicie os containers:**
-   ```bash
-   docker compose -f devops/docker-compose.yml up --build
-   ```
+**1. Clone o repositório:**
+```bash
+git clone https://github.com/dmorais895/LegacyPeople.git
+cd LegacyPeople
+```
 
-3. **Acesse a aplicação:**
-   Abra o navegador em `http://localhost:8000`. As migrações do banco de dados e arquivos estáticos serão executados automaticamente pelo `entrypoint.sh`.
+**2. Crie e ative o ambiente virtual:**
+```bash
+python3 -m venv venv
+source venv/bin/activate       # Linux/macOS
+# venv\Scripts\activate        # Windows
+```
+
+**3. Instale as dependências:**
+```bash
+pip install --upgrade pip
+pip install -r requirements-dev.txt
+npm install
+```
+
+**4. Configure o ambiente:**
+```bash
+cp .env.example .env
+```
+
+Edite o `.env` e ajuste no mínimo estas três variáveis:
+```dotenv
+SECRET_KEY=qualquer-string-longa-aqui
+DEBUG=True
+DB_ENGINE=django.db.backends.sqlite3
+```
+
+**5. Execute as migrações:**
+```bash
+python manage.py migrate
+```
+
+**6. Crie um superusuário para acessar o painel administrativo:**
+```bash
+python manage.py createsuperuser
+```
+
+**7. Inicie o servidor de desenvolvimento:**
+```bash
+python manage.py runserver
+```
+
+Acesse a aplicação em `http://127.0.0.1:8000`.
 
 ---
 
-### Opção 2: Rodando Localmente com Ambiente Virtual Python (`venv`)
+### Opção 2: Localmente com MySQL via Docker Compose
 
-1. **Inicie o serviço do MySQL** (ou suba apenas o banco via Docker):
-   ```bash
-   docker compose -f devops/docker-compose.yml up db -d
-   ```
+Ideal para testar a aplicação com o banco de dados de produção.
 
-2. **Crie e ative o ambiente virtual:**
-   ```bash
-   python3 -m venv venv
-   source venv/bin/activate
-   ```
+**1. Clone o repositório:**
+```bash
+git clone https://github.com/dmorais895/LegacyPeople.git
+cd LegacyPeople
+```
 
-3. **Instale as dependências de desenvolvimento:**
-   ```bash
-   pip install --upgrade pip
-   pip install -r requirements-dev.txt
-   npm install
-   ```
+**2. Configure o ambiente:**
+```bash
+cp .env.example .env
+```
 
-4. **Execute as migrações do banco de dados:**
-   ```bash
-   python manage.py migrate
-   ```
+Edite o `.env` com as credenciais do MySQL:
+```dotenv
+SECRET_KEY=qualquer-string-longa-aqui
+DEBUG=True
+DB_ENGINE=django.db.backends.mysql
+DB_NAME=legacypeople
+DB_USER=django
+DB_PASSWORD=django
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_ROOT_PASSWORD=root
+```
 
-5. **Inicie o servidor de desenvolvimento:**
-   ```bash
-   python manage.py runserver
-   ```
+**3. Suba apenas o banco de dados MySQL:**
+```bash
+docker compose -f devops/docker-compose.yml up db -d
+```
 
-6. **Execute os testes e o linter:**
-   ```bash
-   # Executar os testes automatizados
-   python manage.py test
+**4. Crie e ative o ambiente virtual e instale as dependências:**
+```bash
+python3 -m venv venv
+source venv/bin/activate
+pip install --upgrade pip
+pip install -r requirements-dev.txt
+npm install
+```
 
-   # Executar a verificação do Pylint
-   pylint core legacy_people
-   ```
+**5. Execute as migrações e crie o superusuário:**
+```bash
+python manage.py migrate
+python manage.py createsuperuser
+```
+
+**6. Inicie o servidor:**
+```bash
+python manage.py runserver
+```
+
+---
+
+### Opção 3: Via Docker Compose
+
+O Docker Compose sobe simultaneamente o container da aplicação e o MySQL 8.0.
+O comportamento do container varia de acordo com as variáveis `DEBUG` e `SECRET_KEY` definidas no `.env`.
+
+#### 🛠️ Container de Desenvolvimento (`DEBUG=True`)
+
+```bash
+git clone https://github.com/dmorais895/LegacyPeople.git
+cd LegacyPeople
+cp .env.example .env
+```
+
+Edite o `.env` para o modo desenvolvimento:
+```dotenv
+SECRET_KEY=qualquer-string-longa-aqui
+DEBUG=True
+ALLOWED_HOSTS=          # Pode deixar vazio em DEBUG=True
+DB_NAME=legacypeople
+DB_USER=django
+DB_PASSWORD=django
+DB_ROOT_PASSWORD=root
+```
+
+```bash
+docker compose -f devops/docker-compose.yml up --build
+```
+
+#### 🚀 Container de Produção (`DEBUG=False`)
+
+```bash
+cp .env.example .env
+```
+
+Edite o `.env` para o modo produção:
+```dotenv
+SECRET_KEY=<chave-gerada-com-get_random_secret_key>
+DEBUG=False
+ALLOWED_HOSTS=legacypeople.com.br,www.legacypeople.com.br
+DB_NAME=legacypeople
+DB_USER=django
+DB_PASSWORD=<senha-forte>
+DB_ROOT_PASSWORD=<senha-root-forte>
+```
+
+```bash
+docker compose -f devops/docker-compose.yml up -d
+```
+
+> **⚠️ Atenção:** O `entrypoint.sh` valida a presença de `SECRET_KEY` antes de iniciar o servidor. O container falha imediatamente com uma mensagem clara caso ela não esteja definida.
+
+Acesse em `http://localhost:8000`. As migrações e arquivos estáticos são executados automaticamente pelo `entrypoint.sh`.
+
+---
+
+## 🧪 Testes e Qualidade de Código
+
+```bash
+# Ativar o ambiente virtual
+source venv/bin/activate
+
+# Executar todos os 30 testes automatizados (com SQLite, sem configuração adicional)
+DB_ENGINE=django.db.backends.sqlite3 python manage.py test
+
+# Executar a verificação de qualidade com Pylint (nota mínima: 10.00/10)
+pylint --fail-under=10.0 manage.py core legacy_people
+```
 
 ---
 
 ## 👤 Autor
 
-Desenvolvido por **David Morais**  
-- **GitHub:** [@dmorais895](https://github.com/dmorais895)  
+Desenvolvido por **David Morais**
+- **GitHub:** [@dmorais895](https://github.com/dmorais895)
 - **Projeto:** LegacyPeople — Ministério Legacy / Igreja Lagoinha

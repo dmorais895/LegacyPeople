@@ -47,19 +47,25 @@ jobs:
 
       # Run pylint with the Django plugin so it understands models, views, etc.
       # DB_ENGINE=sqlite3 avoids connection attempts to external databases.
+      # DEBUG=True + a dummy SECRET_KEY satisfy the settings.py security guards in CI.
       - name: Lint with pylint
         env:
           DJANGO_SETTINGS_MODULE: core.settings
           DB_ENGINE: django.db.backends.sqlite3
+          DEBUG: "True"
+          SECRET_KEY: "ci-only-insecure-key-not-used-in-production"
         run: |
           pylint --load-plugins=pylint_django \
                  --django-settings-module=core.settings \
                  $(git ls-files '*.py' | grep -v 'migrations/')
 
       # Run the test suite using SQLite so no external service is needed.
+      # DEBUG=True + a dummy SECRET_KEY satisfy the settings.py security guards in CI.
       - name: Run tests
         env:
           DB_ENGINE: django.db.backends.sqlite3
+          DEBUG: "True"
+          SECRET_KEY: "ci-only-insecure-key-not-used-in-production"
         run: |
           python manage.py test legacy_people --verbosity=2
 

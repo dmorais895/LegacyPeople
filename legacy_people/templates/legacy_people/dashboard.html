@@ -172,6 +172,14 @@
 </div>
 
 <script>
+    // Security: HTML-escape all server-provided values before inserting into innerHTML
+    // This prevents Stored XSS via fields like name, email, prayer_request, etc.
+    function esc(str) {
+        const d = document.createElement('div');
+        d.appendChild(document.createTextNode(String(str)));
+        return d.innerHTML;
+    }
+
     function fetchPrayerPage(pageNum) {
         fetch('?page=' + pageNum + '&ajax=1')
             .then(response => response.json())
@@ -188,11 +196,11 @@
                             <div class="glass-panel p-3 border-0 d-flex flex-column justify-content-between" style="background: rgba(0, 0, 0, 0.25); height: 130px;">
                                 <div>
                                     <div class="d-flex justify-content-between align-items-start mb-2">
-                                        <h6 class="fw-bold text-white mb-0 text-truncate" title="${p.name}">${p.name}</h6>
-                                        <small class="text-glass-light opacity-75 ms-2 text-nowrap">${p.created_at}</small>
+                                        <h6 class="fw-bold text-white mb-0 text-truncate" title="${esc(p.name)}">${esc(p.name)}</h6>
+                                        <small class="text-glass-light opacity-75 ms-2 text-nowrap">${esc(p.created_at)}</small>
                                     </div>
                                     <div class="custom-scrollbar pe-1" style="max-height: 75px; overflow-y: auto;">
-                                        <p class="text-glass-light small mb-0" style="white-space: pre-wrap;">${p.prayer_request}</p>
+                                        <p class="text-glass-light small mb-0" style="white-space: pre-wrap;">${esc(p.prayer_request)}</p>
                                     </div>
                                 </div>
                             </div>
@@ -203,7 +211,7 @@
                 // Update Badge
                 const badgeContainer = document.getElementById('prayerPageBadge');
                 if (data.num_pages > 1) {
-                    badgeContainer.innerHTML = `<span class="badge bg-dark text-glass-light border border-secondary">Página ${data.page} de ${data.num_pages}</span>`;
+                    badgeContainer.innerHTML = `<span class="badge bg-dark text-glass-light border border-secondary">Página ${esc(data.page)} de ${esc(data.num_pages)}</span>`;
                 } else {
                     badgeContainer.innerHTML = '';
                 }
@@ -213,8 +221,8 @@
                 if (data.num_pages > 1) {
                     let pageItems = data.page_range.map(p => `
                         <li class="page-item ${p === data.page ? 'active' : ''}">
-                            <button class="page-link ${p === data.page ? 'bg-light text-dark fw-bold border-light' : 'btn-glass text-white'} rounded-circle px-3 py-1" onclick="fetchPrayerPage(${p})">
-                                ${p}
+                            <button class="page-link ${p === data.page ? 'bg-light text-dark fw-bold border-light' : 'btn-glass text-white'} rounded-circle px-3 py-1" onclick="fetchPrayerPage(${parseInt(p, 10)})">
+                                ${esc(p)}
                             </button>
                         </li>
                     `).join('');
@@ -232,7 +240,7 @@
     }
 
     function filterFeeling(feelingVal) {
-        const url = feelingVal ? '?feeling_ajax=1&feeling=' + feelingVal : '?feeling_ajax=1';
+        const url = feelingVal ? '?feeling_ajax=1&feeling=' + parseInt(feelingVal, 10) : '?feeling_ajax=1';
         fetch(url)
             .then(response => response.json())
             .then(data => {
@@ -259,17 +267,17 @@
                             <div class="glass-panel p-3 h-100 d-flex flex-column justify-content-between border-0" style="background: rgba(0, 0, 0, 0.25);">
                                 <div>
                                     <div class="d-flex justify-content-between align-items-start mb-2">
-                                        <h6 class="fw-bold text-white mb-0 text-truncate" title="${p.name}">${p.name}</h6>
+                                        <h6 class="fw-bold text-white mb-0 text-truncate" title="${esc(p.name)}">${esc(p.name)}</h6>
                                         <span class="badge bg-dark text-glass-light border border-secondary ms-1">
-                                            <i class="bi ${p.feeling_icon} me-1"></i>${p.feeling_label}
+                                            <i class="bi ${esc(p.feeling_icon)} me-1"></i>${esc(p.feeling_label)}
                                         </span>
                                     </div>
-                                    <p class="text-glass-light small mb-3 text-truncate" title="${p.email}">
-                                        <i class="bi bi-envelope me-1"></i>${p.email}
+                                    <p class="text-glass-light small mb-3 text-truncate" title="${esc(p.email)}">
+                                        <i class="bi bi-envelope me-1"></i>${esc(p.email)}
                                     </p>
                                 </div>
                                 <div>
-                                    <a href="https://wa.me/${p.whatsapp_clean}" target="_blank" rel="noopener noreferrer" class="btn btn-success btn-sm w-100 rounded-pill fw-semibold shadow-sm text-uppercase">
+                                    <a href="https://wa.me/${esc(p.whatsapp_clean)}" target="_blank" rel="noopener noreferrer" class="btn btn-success btn-sm w-100 rounded-pill fw-semibold shadow-sm text-uppercase">
                                         <i class="bi bi-whatsapp me-2"></i>Conversar no WhatsApp
                                     </a>
                                 </div>

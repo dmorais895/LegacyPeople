@@ -1,6 +1,13 @@
 from django.db import models
 from django.core.validators import RegexValidator
 
+TIME_LAGOINHA_CHOICES = [
+    ('menos_6_meses', 'Menos de 6 meses'),
+    ('6_meses_1_ano', 'Entre 6 meses e 1 ano'),
+    ('1_3_anos', 'Entre 1 e 3 anos'),
+    ('mais_3_anos', 'Mais de 3 anos'),
+]
+
 class Person(models.Model):
     FEELING_CHOICES = [
         (1, 'Ótimo'),
@@ -20,17 +27,25 @@ class Person(models.Model):
     whatsapp = models.CharField(validators=[whatsapp_regex], max_length=20, verbose_name="Número de WhatsApp")
 
     has_gc = models.BooleanField(default=False, verbose_name="Faz parte de um GC?")
+    # Max length guards against excessively large payloads stored in the database
     gc_name = models.CharField(max_length=255, blank=True, null=True, verbose_name="Qual Grupo de Crescimento?")
 
-    time_lagoinha = models.CharField(max_length=100, verbose_name="Tempo em Lagoinha")
+    # choices enforced at the ORM layer for defence-in-depth beyond form validation
+    time_lagoinha = models.CharField(
+        max_length=50,
+        choices=TIME_LAGOINHA_CHOICES,
+        verbose_name="Tempo em Lagoinha"
+    )
 
     feeling = models.IntegerField(choices=FEELING_CHOICES, verbose_name="Como você está se sentindo?")
-    prayer_request = models.TextField(blank=True, verbose_name="Pedido de oração")
+
+    # Explicit max_length on TextFields prevents unbounded storage DoS
+    prayer_request = models.TextField(blank=True, max_length=2000, verbose_name="Pedido de oração")
 
     wants_chat = models.BooleanField(default=False, verbose_name="Gostaria de conversar?")
 
     frequents_legacy = models.BooleanField(default=True, verbose_name="Frequenta o culto Legacy/programações?")
-    legacy_reason = models.TextField(blank=True, verbose_name="O que te faria se interessar mais?")
+    legacy_reason = models.TextField(blank=True, max_length=2000, verbose_name="O que te faria se interessar mais?")
 
     created_at = models.DateTimeField(auto_now_add=True)
 

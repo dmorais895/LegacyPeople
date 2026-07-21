@@ -1,6 +1,7 @@
 from django.test import TestCase
 from django.urls import reverse
 from django.contrib.auth import get_user_model
+from django.core.cache import cache
 from .forms import PersonForm
 from .models import Person
 
@@ -23,6 +24,16 @@ class LegacyPeopleViewTests(TestCase):
         response = self.client.get(reverse('legacy_people:landing'))
         form_url = reverse('legacy_people:main_form')
         self.assertContains(response, form_url)
+
+    def test_footer_renders_social_links_and_schedule(self):
+        """Test that the footer contains Instagram, YouTube links and service schedules."""
+        response = self.client.get(reverse('legacy_people:landing'))
+        self.assertContains(response, 'https://www.instagram.com/legacynatal.zn/')
+        self.assertContains(response, 'https://www.youtube.com/@Lagoinha-ZonaNorte')
+        self.assertContains(response, '18h30: Legacy Pray')
+        self.assertContains(response, '19h30: Culto Legacy')
+        self.assertContains(response, 'bi-instagram')
+        self.assertContains(response, 'bi-youtube')
 
     def test_main_form_status_code(self):
         """Test that the main form page returns a 200 OK status."""
@@ -281,3 +292,71 @@ class LegacyPeopleAuthAndDashboardTests(TestCase):
         self.assertEqual(json_data['selected_feeling'], 1)
         self.assertEqual(len(json_data['people']), 1)
         self.assertEqual(json_data['people'][0]['name'], 'Person 1')
+
+
+class LoginRateLimitTests(TestCase):
+    """Tests for brute-force / rate-limit protection on the login view."""
+
+    def setUp(self):
+        cache.clear()
+        self.login_url = reverse('legacy_people:login')
+        self.user = User.objects.create_user(username='admin', password='correctpass')
+
+    def _post_bad_login(self, n=1):
+        """Submit n failed login attempts."""
+        for _ in range(n):
+            self.client.post(
+                self.login_url,
+                {'username': 'admin', 'password': 'wrongpassword'},
+                REMOTE_ADDR='10.0.0.1',
+            )
+
+    def test_failed_attempts_show_remaining_count(self):
+        """After a failed login, the response should mention remaining attempts."""
+        response = self.client.post(
+            self.login_url,
+            {'username': 'admin', 'password': 'bad'},
+            REMOTE_ADDR='10.0.0.1',
+        )
+        self.assertContains(response, 'Tentativas restantes')
+
+    def test_lockout_after_max_attempts(self):
+        """After MAX_LOGIN_ATTEMPTS failures, the IP is locked out."""
+        self._post_bad_login(n=5)
+        response = self.client.get(self.login_url, REMOTE_ADDR='10.0.0.1')
+        self.assertContains(response, 'Bloqueado')
+
+    def test_locked_out_ip_cannot_submit_form(self):
+        """A locked-out IP posting correct credentials is still rejected."""
+        self._post_bad_login(n=5)
+        response = self.client.post(
+            self.login_url,
+            {'username': 'admin', 'password': 'correctpass'},
+            REMOTE_ADDR='10.0.0.1',
+        )
+        self.assertContains(response, 'Bloqueado')
+        self.assertFalse(response.wsgi_request.user.is_authenticated)
+
+    def test_different_ips_have_independent_counters(self):
+        """Failed attempts on one IP should not affect another IP."""
+        self._post_bad_login(n=5)  # Lock 10.0.0.1
+        response = self.client.get(self.login_url, REMOTE_ADDR='10.0.0.2')
+        self.assertNotContains(response, 'Bloqueado')
+
+    def test_successful_login_clears_failed_attempts(self):
+        """A successful login resets the failed-attempt counter for the IP."""
+        self._post_bad_login(n=3)
+        self.client.post(
+            self.login_url,
+            {'username': 'admin', 'password': 'correctpass'},
+            REMOTE_ADDR='10.0.0.1',
+        )
+        # Logout so the login view is rendered on next request
+        self.client.logout()
+        # After successful login, further bad attempts should start from 0 again
+        response = self.client.post(
+            self.login_url,
+            {'username': 'admin', 'password': 'bad'},
+            REMOTE_ADDR='10.0.0.1',
+        )
+        self.assertContains(response, 'Tentativas restantes: 4')
