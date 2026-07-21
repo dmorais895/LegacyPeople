@@ -1,9 +1,6 @@
 name: Develop CI
 
 on:
-  push:
-    branches:
-      - "develop"
   pull_request:
     types: [closed]
     branches:
@@ -13,7 +10,6 @@ jobs:
   build-image:
     name: Build and Push Docker Image
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.merged == true)
     permissions:
       contents: read
       packages: write
