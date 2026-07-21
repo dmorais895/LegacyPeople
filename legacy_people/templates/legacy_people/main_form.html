@@ -5,32 +5,32 @@
     <div class="col-md-8 col-lg-7">
         <div class="glass-panel p-4 p-md-5">
             <h3 class="mb-4 text-center fw-bold text-glass">Formulário Legacy</h3>
-            <form action="#" method="POST">
+            <form action="{% url 'legacy_people:main_form' %}" method="POST">
                 {% csrf_token %}
-                
+
                 <div class="row">
                     <!-- Full Name -->
                     <div class="col-md-6 mb-4">
                         <label for="inputName" class="form-label fw-semibold text-glass-light">Nome Completo</label>
-                        <input type="text" class="form-control glass-input" id="inputName" name="name" placeholder="Seu nome completo" required>
+                        <input type="text" class="form-control glass-input" id="inputName" name="name" placeholder="Seu nome completo" required aria-required="true">
                     </div>
 
                     <!-- Email Address -->
                     <div class="col-md-6 mb-4">
                         <label for="inputEmail" class="form-label fw-semibold text-glass-light">Endereço de E-mail</label>
-                        <input type="email" class="form-control glass-input" id="inputEmail" name="email" placeholder="nome@exemplo.com" required>
+                        <input type="email" class="form-control glass-input" id="inputEmail" name="email" placeholder="nome@exemplo.com" required aria-required="true">
                     </div>
                 </div>
 
                 <!-- Whatsapp Number -->
                 <div class="mb-4">
                     <label for="inputWhatsapp" class="form-label fw-semibold text-glass-light">Número de WhatsApp</label>
-                    <input type="text" class="form-control glass-input" id="inputWhatsapp" name="whatsapp" placeholder="+55 XX X XXXX-XXXX" required>
+                    <input type="text" class="form-control glass-input" id="inputWhatsapp" name="whatsapp" placeholder="+55 XX X XXXX-XXXX" required aria-required="true">
                 </div>
 
-                <!-- Faz parte de um grupo de crescimento? -->
-                <div class="mb-4">
-                    <label class="form-label fw-semibold text-glass-light d-block">Faz parte de um Grupo de Crescimento?</label>
+                <!-- Fix: radio group wrapped in fieldset/legend for screen readers -->
+                <fieldset class="mb-4">
+                    <legend class="form-label fw-semibold text-glass-light">Faz parte de um Grupo de Crescimento?</legend>
                     <div class="form-check form-check-inline">
                         <input class="form-check-input" type="radio" name="has_gc" id="gcYes" value="yes" onchange="toggleGC()">
                         <label class="form-check-label text-glass-light" for="gcYes">Sim</label>
@@ -39,23 +39,29 @@
                         <input class="form-check-input" type="radio" name="has_gc" id="gcNo" value="no" onchange="toggleGC()" checked>
                         <label class="form-check-label text-glass-light" for="gcNo">Não</label>
                     </div>
-                </div>
+                </fieldset>
 
                 <!-- GC Name (Hidden by default) -->
-                <div class="mb-4 d-none" id="gcNameDiv">
+                <div class="mb-4 d-none" id="gcNameDiv" aria-hidden="true">
                     <label for="inputGcName" class="form-label fw-semibold text-glass-light">Qual Grupo de Crescimento?</label>
                     <input type="text" class="form-control glass-input" id="inputGcName" name="gc_name" placeholder="Digite o nome ou líder do seu GC">
                 </div>
 
-                <!-- A quanto tempo está em lagoinha? -->
+                <!-- Fix: select instead of free text for quantifiable data analysis -->
                 <div class="mb-4">
                     <label for="inputTime" class="form-label fw-semibold text-glass-light">A quanto tempo está em Lagoinha?</label>
-                    <input type="text" class="form-control glass-input" id="inputTime" name="time_lagoinha" placeholder="Ex: 6 meses, 2 anos..." required>
+                    <select class="form-control glass-input" id="inputTime" name="time_lagoinha" required aria-required="true">
+                        <option value="" disabled selected>Selecione uma opção...</option>
+                        <option value="menos_6_meses">Menos de 6 meses</option>
+                        <option value="6_meses_1_ano">Entre 6 meses e 1 ano</option>
+                        <option value="1_3_anos">Entre 1 e 3 anos</option>
+                        <option value="mais_3_anos">Mais de 3 anos</option>
+                    </select>
                 </div>
 
-                <!-- Como você está se sentindo? -->
-                <div class="mb-4">
-                    <label class="form-label fw-semibold text-glass-light d-block">Como você está se sentindo?</label>
+                <!-- Fix: radio group wrapped in fieldset/legend -->
+                <fieldset class="mb-4">
+                    <legend class="form-label fw-semibold text-glass-light">Como você está se sentindo?</legend>
                     <div class="d-flex flex-wrap gap-3 mt-2">
                         <div class="form-check">
                             <input class="form-check-input" type="radio" name="feeling" id="feeling1" value="1" required>
@@ -78,7 +84,7 @@
                             <label class="form-check-label text-glass-light" for="feeling5">5 - Mal 😔</label>
                         </div>
                     </div>
-                </div>
+                </fieldset>
 
                 <!-- Tem algum pedido de oração? -->
                 <div class="mb-4">
@@ -86,9 +92,9 @@
                     <textarea class="form-control glass-input" id="inputPrayer" name="prayer_request" rows="3" placeholder="Deixe seu pedido aqui para orarmos por você..."></textarea>
                 </div>
 
-                <!-- Gostaria de conversar? -->
-                <div class="mb-4">
-                    <label class="form-label fw-semibold text-glass-light d-block">Gostaria de conversar?</label>
+                <!-- Fix: radio group wrapped in fieldset/legend -->
+                <fieldset class="mb-4">
+                    <legend class="form-label fw-semibold text-glass-light">Gostaria de conversar?</legend>
                     <div class="form-check form-check-inline">
                         <input class="form-check-input" type="radio" name="wants_chat" id="chatYes" value="yes">
                         <label class="form-check-label text-glass-light" for="chatYes">Sim</label>
@@ -97,11 +103,11 @@
                         <input class="form-check-input" type="radio" name="wants_chat" id="chatNo" value="no" checked>
                         <label class="form-check-label text-glass-light" for="chatNo">Não</label>
                     </div>
-                </div>
+                </fieldset>
 
-                <!-- Você frequenta o culto Legacy ou as nossas programações? -->
-                <div class="mb-4">
-                    <label class="form-label fw-semibold text-glass-light d-block">Você frequenta o culto Legacy ou as nossas programações?</label>
+                <!-- Fix: radio group wrapped in fieldset/legend -->
+                <fieldset class="mb-4">
+                    <legend class="form-label fw-semibold text-glass-light">Você frequenta o culto Legacy ou as nossas programações?</legend>
                     <div class="form-check form-check-inline">
                         <input class="form-check-input" type="radio" name="frequents_legacy" id="legacyYes" value="yes" onchange="toggleLegacy()" checked>
                         <label class="form-check-label text-glass-light" for="legacyYes">Sim</label>
@@ -110,10 +116,10 @@
                         <input class="form-check-input" type="radio" name="frequents_legacy" id="legacyNo" value="no" onchange="toggleLegacy()">
                         <label class="form-check-label text-glass-light" for="legacyNo">Não</label>
                     </div>
-                </div>
+                </fieldset>
 
-                <!-- Se não, oque te faria se interessar mais? (Hidden by default) -->
-                <div class="mb-5 d-none" id="legacyReasonDiv">
+                <!-- Hidden by default -->
+                <div class="mb-5 d-none" id="legacyReasonDiv" aria-hidden="true">
                     <label for="inputLegacyReason" class="form-label fw-semibold text-glass-light">O que te faria se interessar mais pelo ministério?</label>
                     <textarea class="form-control glass-input" id="inputLegacyReason" name="legacy_reason" rows="3" placeholder="Sua opinião é muito importante para nós. O que podemos melhorar?"></textarea>
                 </div>
@@ -125,24 +131,25 @@
 </div>
 
 <script>
+    // Fix: use aria-hidden toggle alongside d-none for screen reader support
     function toggleGC() {
-        var yesRadio = document.getElementById('gcYes');
-        var gcNameDiv = document.getElementById('gcNameDiv');
-        if(yesRadio.checked) {
-            gcNameDiv.classList.remove('d-none');
-        } else {
-            gcNameDiv.classList.add('d-none');
+        const yesRadio = document.getElementById('gcYes');
+        const gcNameDiv = document.getElementById('gcNameDiv');
+        const isVisible = yesRadio.checked;
+        gcNameDiv.classList.toggle('d-none', !isVisible);
+        gcNameDiv.setAttribute('aria-hidden', String(!isVisible));
+        if (!isVisible) {
             document.getElementById('inputGcName').value = '';
         }
     }
 
     function toggleLegacy() {
-        var noRadio = document.getElementById('legacyNo');
-        var legacyReasonDiv = document.getElementById('legacyReasonDiv');
-        if(noRadio.checked) {
-            legacyReasonDiv.classList.remove('d-none');
-        } else {
-            legacyReasonDiv.classList.add('d-none');
+        const noRadio = document.getElementById('legacyNo');
+        const legacyReasonDiv = document.getElementById('legacyReasonDiv');
+        const isVisible = noRadio.checked;
+        legacyReasonDiv.classList.toggle('d-none', !isVisible);
+        legacyReasonDiv.setAttribute('aria-hidden', String(!isVisible));
+        if (!isVisible) {
             document.getElementById('inputLegacyReason').value = '';
         }
     }
