@@ -1,0 +1,41 @@
+# Environments
+venv/
+env/
+.env
+.env.local
+# .env.example is intentionally tracked (no secrets, serves as documentation)
+
+# Media files
+media/
+uploads/
+
+# Python cache files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Django
+db.sqlite3
+db.sqlite3-journal
+/static/
+
+# IDEs and OS files
+.vscode/
+.idea/
+.DS_Store
+*.swp
+*.swo
+
+# Temporary and build files
+*.log
+tmp/
+build/
+dist/
+*.egg-info/
+
+## Coverage
+.coverage
+
+# Agents ans Skills
+.agents/*

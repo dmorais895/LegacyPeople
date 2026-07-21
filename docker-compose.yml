@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  db:
+    image: mysql:8.0
+    container_name: legacypeople_db
+    restart: always
+    environment:
+      MYSQL_DATABASE: ${DB_NAME:-legacypeople}
+      MYSQL_USER: ${DB_USER:-django}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-django}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root}
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+volumes:
+  mysql_data:
