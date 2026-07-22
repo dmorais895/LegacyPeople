@@ -131,11 +131,66 @@ def _handle_feeling_ajax(feeling_param):
         'people': people_data,
     })
 
+def _handle_stat_ajax(type_param, page_param):
+    """Return JsonResponse for reusable stat modal pagination (max 10 items per page)."""
+    if type_param == 'no_gc':
+        qs = Person.objects.filter(has_gc=False).order_by('-created_at')
+        title = 'Pessoas sem Grupo de Crescimento'
+        icon = 'bi-people'
+    elif type_param == 'wants_chat':
+        qs = Person.objects.filter(wants_chat=True).order_by('-created_at')
+        title = 'Pessoas que Gostariam de Conversar'
+        icon = 'bi-chat-dots'
+    else:
+        type_param = 'all'
+        qs = Person.objects.all().order_by('-created_at')
+        title = 'Todas as Pessoas Cadastradas'
+        icon = 'bi-people-fill'
+
+    paginator = Paginator(qs, 10)
+    try:
+        page_num = int(page_param)
+    except (ValueError, TypeError):
+        page_num = 1
+
+    stat_page = paginator.get_page(page_num)
+
+    people_data = [{
+        'id': p.id,
+        'name': p.name,
+        'email': p.email,
+        'whatsapp_clean': p.whatsapp_clean,
+        'feeling': p.feeling,
+        'feeling_label': FEELING_MAP.get(p.feeling, ('', ''))[0],
+        'feeling_icon': FEELING_MAP.get(p.feeling, ('', ''))[1],
+        'time_lagoinha_display': p.get_time_lagoinha_display(),
+        'has_gc': p.has_gc,
+        'gc_name': p.gc_name or '',
+        'frequents_legacy': p.frequents_legacy,
+        'legacy_reason': p.legacy_reason or '',
+        'wants_chat': p.wants_chat,
+    } for p in stat_page]
+
+    return JsonResponse({
+        'type': type_param,
+        'title': title,
+        'icon': icon,
+        'total_count': paginator.count,
+        'page': stat_page.number,
+        'num_pages': paginator.num_pages,
+        'page_range': list(paginator.page_range),
+        'people': people_data,
+    })
+
 @login_required
 def dashboard_view(request):
     """Authenticated dashboard displaying form data metrics and prayer requests."""
+    if request.GET.get('stat_ajax') == '1':
+        return _handle_stat_ajax(request.GET.get('type'), request.GET.get('page'))
+
     if request.GET.get('feeling_ajax') == '1':
         return _handle_feeling_ajax(request.GET.get('feeling'))
+
 
     feelings_distribution = {
         key: Person.objects.filter(feeling=key).count() for key in range(1, 6)
@@ -166,10 +221,17 @@ def dashboard_view(request):
             'prayers': prayers_data,
         })
 
+    all_people = Person.objects.all()
+    no_gc_people = Person.objects.filter(has_gc=False)
+    wants_chat_people = Person.objects.filter(wants_chat=True)
+
     context = {
-        'total_people': Person.objects.count(),
-        'no_gc_count': Person.objects.filter(has_gc=False).count(),
-        'wants_chat_count': Person.objects.filter(wants_chat=True).count(),
+        'total_people': all_people.count(),
+        'all_people': all_people,
+        'no_gc_count': no_gc_people.count(),
+        'no_gc_people': no_gc_people,
+        'wants_chat_count': wants_chat_people.count(),
+        'wants_chat_people': wants_chat_people,
         'feelings_distribution': feelings_distribution,
         'selected_feeling': selected_feeling,
         'people_list': people_list,

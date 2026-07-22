@@ -240,7 +240,83 @@ class LegacyPeopleAuthAndDashboardTests(TestCase):
         self.assertContains(response, 'https://wa.me/5511999992222')
         self.assertContains(response, 'bi-whatsapp')
 
+    def test_dashboard_stat_card_buttons_and_reusable_modal(self):
+        """Test that stat cards render buttons opening the reusable modal #statModal."""
+        self.client.login(username='testadmin', password='password123')
+        response = self.client.get(reverse('legacy_people:dashboard'))
+        self.assertEqual(response.status_code, 200)
+
+        # Check stat card buttons
+        self.assertContains(response, 'id="btnOpenAllPeopleModal"')
+        self.assertContains(response, 'onclick="openStatModal(\'all\')"')
+        self.assertContains(response, 'id="btnOpenNoGcModal"')
+        self.assertContains(response, 'onclick="openStatModal(\'no_gc\')"')
+        self.assertContains(response, 'id="btnOpenWantsChatModal"')
+        self.assertContains(response, 'onclick="openStatModal(\'wants_chat\')"')
+
+        # Check reusable modal element
+        self.assertContains(response, 'id="statModal"')
+        self.assertContains(response, 'id="statModalCardsContainer"')
+        self.assertContains(response, 'id="statModalPaginationContainer"')
+
+    def test_stat_modal_ajax_pagination_max_10_per_page(self):
+        """Test stat_ajax endpoint paginates data max 10 per page with correct page numbers and layout data."""
+        self.client.login(username='testadmin', password='password123')
+
+        # Create 15 additional people without GC (total 17)
+        for i in range(1, 16):
+            Person.objects.create(
+                name=f"Paginated User {i}",
+                email=f"pageuser{i}@ex.com",
+                whatsapp=f"+551199999{i:04d}",
+                has_gc=False,
+                time_lagoinha="menos_6_meses",
+                feeling=1,
+                frequents_legacy=False,
+                legacy_reason=f"Motivo {i}"
+            )
+
+        # Page 1 request
+        res_p1 = self.client.get(reverse('legacy_people:dashboard') + '?stat_ajax=1&type=all&page=1')
+        self.assertEqual(res_p1.status_code, 200)
+        data_p1 = res_p1.json()
+        self.assertEqual(data_p1['type'], 'all')
+        self.assertEqual(data_p1['total_count'], 17)
+        self.assertEqual(data_p1['page'], 1)
+        self.assertEqual(data_p1['num_pages'], 2)
+        self.assertEqual(data_p1['page_range'], [1, 2])
+        self.assertEqual(len(data_p1['people']), 10)  # Max 10 per page
+
+        # Page 2 request
+        res_p2 = self.client.get(reverse('legacy_people:dashboard') + '?stat_ajax=1&type=all&page=2')
+        self.assertEqual(res_p2.status_code, 200)
+        data_p2 = res_p2.json()
+        self.assertEqual(data_p2['page'], 2)
+        self.assertEqual(len(data_p2['people']), 7)  # Remaining 7 on page 2
+
+    def test_stat_modal_ajax_no_gc_filter(self):
+        """Test stat_ajax filtering for no_gc type."""
+        self.client.login(username='testadmin', password='password123')
+        res = self.client.get(reverse('legacy_people:dashboard') + '?stat_ajax=1&type=no_gc&page=1')
+        self.assertEqual(res.status_code, 200)
+        data = res.json()
+        self.assertEqual(data['type'], 'no_gc')
+        self.assertEqual(data['total_count'], 1)
+        self.assertEqual(data['people'][0]['name'], 'Person 1')
+
+    def test_stat_modal_ajax_wants_chat_filter(self):
+        """Test stat_ajax filtering for wants_chat type."""
+        self.client.login(username='testadmin', password='password123')
+        res = self.client.get(reverse('legacy_people:dashboard') + '?stat_ajax=1&type=wants_chat&page=1')
+        self.assertEqual(res.status_code, 200)
+        data = res.json()
+        self.assertEqual(data['type'], 'wants_chat')
+        self.assertEqual(data['total_count'], 1)
+        self.assertEqual(data['people'][0]['name'], 'Person 1')
+
     def test_dashboard_prayer_requests_pagination(self):
+
+
         """Test that prayer requests are paginated max 10 per page."""
         for i in range(1, 16):
             Person.objects.create(

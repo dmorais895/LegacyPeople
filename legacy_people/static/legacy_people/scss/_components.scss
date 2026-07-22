@@ -91,3 +91,45 @@ form .glass-input {
         }
     }
 }
+
+/* Glass Modal Styling */
+.modal-glass {
+    .modal-content {
+        background: rgba(15, 15, 18, 0.95);
+        backdrop-filter: blur(vars.$glass-blur);
+        -webkit-backdrop-filter: blur(vars.$glass-blur);
+        border: 1px solid vars.$glass-border;
+        border-radius: 20px;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.9), 0 0 25px rgba(vars.$accent-yellow, 0.2);
+        color: vars.$text-light;
+    }
+
+    .modal-header {
+        border-bottom: 1px solid vars.$glass-border-subtle;
+    }
+
+    .modal-footer {
+        border-top: 1px solid vars.$glass-border-subtle;
+    }
+}
+
+/* Stat Modal Fixed Height & Smooth Transition */
+#statModalCardsContainer {
+    min-height: 1040px;
+    align-content: flex-start;
+    align-items: flex-start;
+    transition: opacity 0.2s ease-in-out;
+}
+
+.stat-person-card {
+    height: 195px;
+    min-height: 195px;
+    max-height: 195px;
+    overflow: hidden;
+}
+
+
+
+
+
+
