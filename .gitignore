@@ -42,3 +42,6 @@ Thumbs.db
 node_modules/
 .sass-cache/
 npm-debug.log
+
+# Agentic files
+security_audit_report*

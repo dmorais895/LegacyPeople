@@ -37,7 +37,10 @@
                             <a class="nav-link text-white fw-semibold" href="{% url 'legacy_people:dashboard' %}">Dashboard</a>
                         </li>
                         <li class="nav-item">
-                            <a class="btn btn-glass btn-sm px-3" href="{% url 'legacy_people:logout' %}">Sair</a>
+                            <form method="POST" action="{% url 'legacy_people:logout' %}" class="d-inline">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-glass btn-sm px-3">Sair</button>
+                        </form>
                         </li>
                     {% else %}
                         <li class="nav-item">

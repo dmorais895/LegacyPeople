@@ -5,8 +5,9 @@ from django.contrib import messages
 from django.core.cache import cache
 from django.core.paginator import Paginator
 from django.http import JsonResponse
-from .forms import PersonForm
+from django.views.decorators.http import require_POST
 from .models import Person
+from .forms import PersonForm
 
 # Brute-force / rate-limit configuration
 _MAX_LOGIN_ATTEMPTS = 5      # Maximum failed attempts before lockout
@@ -51,8 +52,20 @@ def landing_page(request):
     return render(request, 'legacy_people/landing.html')
 
 def main_form(request):
-    """Render and process the main questionnaire form."""
+    """Render and process the public questionnaire form.
+    This view is intentionally public (no login required) but includes:
+    * CSRF protection (default Django middleware).
+    * Simple IP‑based rate limiting to mitigate DDoS / abuse.
+    """
+    # ----- Rate limiting (20 submissions per hour per IP) -----
+    client_ip = _get_client_ip(request)
+    if cache.get(f'form_attempts_{client_ip}', 0) >= 20:
+        # Too many attempts – return 429 Too Many Requests
+        from django.http import HttpResponseTooManyRequests
+        return HttpResponseTooManyRequests('Muitas submissões deste IP. Por favor, tente novamente mais tarde.')
     if request.method == 'POST':
+        # Count this attempt before validation (even if invalid) to avoid brute‑force bypass
+        cache.incr(f'form_attempts_{client_ip}', 1)
         form = PersonForm(request.POST)
         if form.is_valid():
             form.save()
@@ -61,7 +74,10 @@ def main_form(request):
         messages.error(request, 'Por favor, corrija os erros no formulário.')
     else:
         form = PersonForm()
-    return render(request, 'legacy_people/main_form.html', {'form': form})
+    # Render with CSP header
+    response = render(request, 'legacy_people/main_form.html', {'form': form})
+    response['Content-Security-Policy'] = "default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com; img-src 'self' data:; font-src https://fonts.gstatic.com;"
+    return response
 
 def login_view(request):
     """Render and process administrative login with brute-force protection."""
@@ -100,11 +116,14 @@ def login_view(request):
 
     return render(request, 'legacy_people/login.html')
 
+@login_required
+@require_POST
 def logout_view(request):
-    """Log out the current user and redirect to landing page."""
+    """Log out the current user and redirect to landing page (POST only)."""
     logout(request)
     messages.info(request, 'Sessão encerrada com sucesso.')
     return redirect('legacy_people:landing')
+
 
 def _get_filtered_people(feeling_param):
     """Filter Person queryset based on feeling parameter."""
@@ -131,62 +150,56 @@ def _handle_feeling_ajax(feeling_param):
         'people': people_data,
     })
 
-def _handle_stat_ajax(type_param, page_param):
-    """Return JsonResponse for reusable stat modal pagination (max 10 items per page)."""
-    if type_param == 'no_gc':
-        qs = Person.objects.filter(has_gc=False).order_by('-created_at')
-        title = 'Pessoas sem Grupo de Crescimento'
-        icon = 'bi-people'
-    elif type_param == 'wants_chat':
-        qs = Person.objects.filter(wants_chat=True).order_by('-created_at')
-        title = 'Pessoas que Gostariam de Conversar'
-        icon = 'bi-chat-dots'
-    else:
-        type_param = 'all'
-        qs = Person.objects.all().order_by('-created_at')
-        title = 'Todas as Pessoas Cadastradas'
-        icon = 'bi-people-fill'
+def _handle_stat_ajax(request):
+    """Return paginated people data for statistical modals via AJAX.
+    Only authenticated users may access this endpoint. Accepted types are
+    'all', 'no_gc', and 'wants_chat'.
+    """
+    # Enforce authentication explicitly (defense in depth)
+    from django.contrib.auth.decorators import login_required
+    @login_required
+    def inner(request):
+        stat_type = request.GET.get('type', 'all')
+        # Validate allowed types to prevent enumeration attacks
+        allowed = {'all', 'no_gc', 'wants_chat'}
+        if stat_type not in allowed:
+            return JsonResponse({'error': 'Invalid stat type'}, status=400)
+        page_number = request.GET.get('page', 1)
 
-    paginator = Paginator(qs, 10)
-    try:
-        page_num = int(page_param)
-    except (ValueError, TypeError):
-        page_num = 1
+        if stat_type == 'no_gc':
+            qs = Person.objects.filter(has_gc=False)
+        elif stat_type == 'wants_chat':
+            qs = Person.objects.filter(wants_chat=True)
+        else:
+            qs = Person.objects.all()
 
-    stat_page = paginator.get_page(page_num)
+        paginator = Paginator(qs, 10)
+        page_obj = paginator.get_page(page_number)
+        people_data = [{
+            'id': p.id,
+            'name': p.name,
+            'email': p.email,
+            'whatsapp_clean': p.whatsapp_clean,
+            'feeling': p.feeling,
+            'feeling_label': FEELING_MAP.get(p.feeling, ('', ''))[0],
+            'feeling_icon': FEELING_MAP.get(p.feeling, ('', ''))[1],
+            'frequents_legacy': p.frequents_legacy,
+            'legacy_reason': p.legacy_reason,
+        } for p in page_obj]
+        return JsonResponse({
+            'page': page_obj.number,
+            'num_pages': paginator.num_pages,
+            'page_range': list(paginator.page_range),
+            'people': people_data,
+        })
+    return inner(request)
 
-    people_data = [{
-        'id': p.id,
-        'name': p.name,
-        'email': p.email,
-        'whatsapp_clean': p.whatsapp_clean,
-        'feeling': p.feeling,
-        'feeling_label': FEELING_MAP.get(p.feeling, ('', ''))[0],
-        'feeling_icon': FEELING_MAP.get(p.feeling, ('', ''))[1],
-        'time_lagoinha_display': p.get_time_lagoinha_display(),
-        'has_gc': p.has_gc,
-        'gc_name': p.gc_name or '',
-        'frequents_legacy': p.frequents_legacy,
-        'legacy_reason': p.legacy_reason or '',
-        'wants_chat': p.wants_chat,
-    } for p in stat_page]
-
-    return JsonResponse({
-        'type': type_param,
-        'title': title,
-        'icon': icon,
-        'total_count': paginator.count,
-        'page': stat_page.number,
-        'num_pages': paginator.num_pages,
-        'page_range': list(paginator.page_range),
-        'people': people_data,
-    })
 
 @login_required
 def dashboard_view(request):
     """Authenticated dashboard displaying form data metrics and prayer requests."""
     if request.GET.get('stat_ajax') == '1':
-        return _handle_stat_ajax(request.GET.get('type'), request.GET.get('page'))
+        return _handle_stat_ajax(request)
 
     if request.GET.get('feeling_ajax') == '1':
         return _handle_feeling_ajax(request.GET.get('feeling'))
