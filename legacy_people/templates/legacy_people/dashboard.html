@@ -17,26 +17,50 @@
 <!-- Stat Cards -->
 <div class="row g-4 mb-5">
     <div class="col-md-4">
-        <div class="glass-panel p-4 text-center">
-            <h6 class="text-glass-light text-uppercase fw-semibold mb-2">Total de Respostas</h6>
-            <h2 class="display-5 fw-bold text-white mb-0">{{ total_people }}</h2>
+        <div class="glass-panel p-4 text-center h-100 d-flex flex-column justify-content-between">
+            <div>
+                <h6 class="text-glass-light text-uppercase fw-semibold mb-2">Total de Respostas</h6>
+                <h2 class="display-5 fw-bold text-white mb-0">{{ total_people }}</h2>
+            </div>
+            <div class="mt-3">
+                <button type="button" class="btn btn-glass btn-sm px-3" onclick="openStatModal('all')" id="btnOpenAllPeopleModal">
+                    <i class="bi bi-people me-1"></i>Ver Pessoas
+                </button>
+            </div>
         </div>
     </div>
     <div class="col-md-4">
-        <div class="glass-panel p-4 text-center">
-            <h6 class="text-glass-light text-uppercase fw-semibold mb-2">Sem Grupo de Crescimento</h6>
-            <h2 class="display-5 fw-bold mb-0 {% if no_gc_count == 0 %}text-success{% elif no_gc_count < 5 %}text-warning{% else %}text-danger{% endif %}">
-                {{ no_gc_count }}
-            </h2>
+        <div class="glass-panel p-4 text-center h-100 d-flex flex-column justify-content-between">
+            <div>
+                <h6 class="text-glass-light text-uppercase fw-semibold mb-2">Sem Grupo de Crescimento</h6>
+                <h2 class="display-5 fw-bold mb-0 {% if no_gc_count == 0 %}text-success{% elif no_gc_count < 5 %}text-warning{% else %}text-danger{% endif %}">
+                    {{ no_gc_count }}
+                </h2>
+            </div>
+            <div class="mt-3">
+                <button type="button" class="btn btn-glass btn-sm px-3" onclick="openStatModal('no_gc')" id="btnOpenNoGcModal">
+                    <i class="bi bi-people me-1"></i>Ver Pessoas
+                </button>
+            </div>
         </div>
     </div>
     <div class="col-md-4">
-        <div class="glass-panel p-4 text-center">
-            <h6 class="text-glass-light text-uppercase fw-semibold mb-2">Gostariam de Conversar</h6>
-            <h2 class="display-5 fw-bold text-white mb-0">{{ wants_chat_count }}</h2>
+        <div class="glass-panel p-4 text-center h-100 d-flex flex-column justify-content-between">
+            <div>
+                <h6 class="text-glass-light text-uppercase fw-semibold mb-2">Gostariam de Conversar</h6>
+                <h2 class="display-5 fw-bold text-white mb-0">{{ wants_chat_count }}</h2>
+            </div>
+            <div class="mt-3">
+                <button type="button" class="btn btn-glass btn-sm px-3" onclick="openStatModal('wants_chat')" id="btnOpenWantsChatModal">
+                    <i class="bi bi-chat-dots me-1"></i>Ver Pessoas
+                </button>
+            </div>
         </div>
     </div>
 </div>
+
+
+
 
 <!-- Feeling Distribution Section: Pie Chart & Filter -->
 <div class="row g-4 mb-5">
@@ -171,7 +195,49 @@
     </div>
 </div>
 
+<!-- Reusable Modal: Cards Estatísticos (Paginação AJAX de até 10 pessoas por página) -->
+<div class="modal fade modal-glass" id="statModal" tabindex="-1" aria-labelledby="statModalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header d-flex align-items-center justify-content-between">
+                <div class="d-flex align-items-center gap-2">
+                    <h5 class="modal-title fw-bold text-glass mb-0" id="statModalTitle">
+                        <i class="bi bi-people me-2 text-warning"></i>Pessoas
+                    </h5>
+                    <span class="badge bg-dark text-glass-light fs-6" id="statModalBadge" style="border: 1px solid rgba(245, 199, 1, 0.4);">
+                        0
+                    </span>
+                </div>
+                <div class="d-flex align-items-center gap-3">
+                    <div id="statModalPageBadge"></div>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+            </div>
+            <div class="modal-body custom-scrollbar p-4">
+                <div class="row g-3 align-content-start align-items-start" id="statModalCardsContainer" style="min-height: 1040px; transition: opacity 0.2s ease-in-out;">
+
+
+
+                    <div class="col-12 text-center text-glass-light py-5">
+                        <p class="mb-0">Carregando pessoas...</p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer flex-column align-items-stretch border-top-0 pt-0">
+                <div id="statModalPaginationContainer" class="mb-3">
+                    <!-- Dynamic pagination controls matching prayer requests layout -->
+                </div>
+                <div class="text-end">
+                    <button type="button" class="btn btn-glass btn-sm px-4" data-bs-dismiss="modal">Fechar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
 <script>
+
     // Security: HTML-escape all server-provided values before inserting into innerHTML
     // This prevents Stored XSS via fields like name, email, prayer_request, etc.
     function esc(str) {
@@ -179,6 +245,174 @@
         d.appendChild(document.createTextNode(String(str)));
         return d.innerHTML;
     }
+
+    function fetchStatPage(type, pageNum) {
+        pageNum = pageNum || 1;
+        const container = document.getElementById('statModalCardsContainer');
+        container.style.opacity = '0.3';
+
+        fetch('?stat_ajax=1&type=' + encodeURIComponent(type) + '&page=' + parseInt(pageNum, 10))
+            .then(response => response.json())
+            .then(data => {
+                // Update Modal Header Title, Icon & Badge
+                document.getElementById('statModalTitle').innerHTML = `<i class="bi ${esc(data.icon)} me-2 text-warning"></i>${esc(data.title)}`;
+                document.getElementById('statModalBadge').textContent = data.total_count;
+
+                // Update Page Badge in Header
+                const pageBadge = document.getElementById('statModalPageBadge');
+                if (data.num_pages > 1) {
+                    pageBadge.innerHTML = `<span class="badge bg-dark text-glass-light" style="border: 1px solid rgba(245, 199, 1, 0.4);">Página ${esc(data.page)} de ${esc(data.num_pages)}</span>`;
+                } else {
+                    pageBadge.innerHTML = '';
+                }
+
+                // Render Cards Grid
+                if (data.people.length === 0) {
+                    let emptyMsg = 'Nenhuma pessoa encontrada.';
+                    let emptyIcon = 'bi-inbox';
+                    if (data.type === 'no_gc') {
+                        emptyMsg = 'Todas as pessoas cadastradas já fazem parte de um Grupo de Crescimento.';
+                        emptyIcon = 'bi-check-circle-fill text-success';
+                    } else if (data.type === 'wants_chat') {
+                        emptyMsg = 'Nenhuma pessoa solicitou atendimento ou conversa no momento.';
+                        emptyIcon = 'bi-chat-left-dots';
+                    } else if (data.type === 'all') {
+                        emptyMsg = 'Ainda não existem respostas cadastradas no formulário.';
+                        emptyIcon = 'bi-inbox';
+                    }
+                    container.innerHTML = `
+                        <div class="col-12 text-center text-glass-light py-5">
+                            <i class="bi ${emptyIcon} display-4 mb-3 d-block"></i>
+                            <h5 class="fw-bold text-white">Nenhum resultado</h5>
+                            <p class="mb-0 text-glass-light">${esc(emptyMsg)}</p>
+                        </div>`;
+                } else {
+                    container.innerHTML = data.people.map(p => {
+                        let feelingBadge = '';
+                        if (p.feeling === 1) feelingBadge = '<i class="bi bi-emoji-laughing me-1"></i>Ótimo';
+                        else if (p.feeling === 2) feelingBadge = '<i class="bi bi-emoji-smile me-1"></i>Bem';
+                        else if (p.feeling === 3) feelingBadge = '<i class="bi bi-emoji-neutral me-1"></i>Neutro';
+                        else if (p.feeling === 4) feelingBadge = '<i class="bi bi-emoji-frown me-1"></i>Não muito bem';
+                        else if (p.feeling === 5) feelingBadge = '<i class="bi bi-emoji-angry me-1"></i>Mal';
+
+                        let gcBadge = p.has_gc
+                            ? `<span class="badge bg-success text-white">${esc(p.gc_name || 'Sim')}</span>`
+                            : '<span class="badge bg-secondary text-white">Não possui</span>';
+
+                                       if (data.type === 'all') {
+                            let legacyBadge = p.frequents_legacy
+                                ? '<span class="badge bg-success text-white">Sim</span>'
+                                : '<span class="badge bg-warning text-dark">Não</span>';
+                            let reasonBlock = (!p.frequents_legacy)
+                                ? `<div class="mt-2" style="background: rgba(0, 0, 0, 0.25); padding: 8px; border-radius: 8px; border-left: 3px solid #f5c701;">
+                                     <p class="text-glass-light small mb-0" style="font-size: 0.8rem;">
+                                       <i class="bi bi-chat-left-text me-1 text-warning"></i><strong>O que te faria interessar mais:</strong><br>
+                                       <span style="white-space: pre-wrap;">${esc(p.legacy_reason || 'Não informado')}</span>
+                                     </p>
+                                   </div>`
+                                : '';
+
+                            return `
+                                <div class="col-md-6">
+                                    <div class="glass-panel p-3 stat-person-card" style="background: rgba(0, 0, 0, 0.35); border: 1px solid rgba(245, 199, 1, 0.25); height: 195px; min-height: 195px; max-height: 195px; overflow: hidden;">
+                                        <div class="custom-scrollbar h-100 pe-1" style="overflow-y: auto;">
+                                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                                <h6 class="fw-bold text-white mb-0 text-truncate" title="${esc(p.name)}">${esc(p.name)}</h6>
+                                                <span class="badge bg-dark text-glass-light ms-1" style="border: 1px solid rgba(245, 199, 1, 0.4);">
+                                                    ${feelingBadge}
+                                                </span>
+                                            </div>
+                                            <p class="text-glass-light small mb-2 text-truncate" title="${esc(p.email)}">
+                                                <i class="bi bi-envelope me-1"></i>${esc(p.email)}
+                                            </p>
+                                            <p class="text-glass-light small mb-2">
+                                                <i class="bi bi-clock-history me-1"></i>Tempo em Lagoinha: 
+                                                <span class="fw-semibold text-white">${esc(p.time_lagoinha_display)}</span>
+                                            </p>
+                                            <p class="text-glass-light small mb-2">
+                                                <i class="bi bi-diagram-3 me-1"></i>GC: ${gcBadge}
+                                            </p>
+                                            <p class="text-glass-light small mb-1">
+                                                <i class="bi bi-calendar-event me-1"></i>Frequenta o Culto Legacy: ${legacyBadge}
+                                            </p>
+                                            ${reasonBlock}
+                                        </div>
+                                    </div>
+                                </div>`;
+                        } else {
+                            return `
+                                <div class="col-md-6">
+                                    <div class="glass-panel p-3 h-100 d-flex flex-column justify-content-between stat-person-card" style="background: rgba(0, 0, 0, 0.35); border: 1px solid rgba(245, 199, 1, 0.25); height: 195px; min-height: 195px; max-height: 195px; overflow: hidden;">
+                                        <div>
+                                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                                <h6 class="fw-bold text-white mb-0 text-truncate" title="${esc(p.name)}">${esc(p.name)}</h6>
+                                                <span class="badge bg-dark text-glass-light ms-1" style="border: 1px solid rgba(245, 199, 1, 0.4);">
+                                                    ${feelingBadge}
+                                                </span>
+                                            </div>
+                                            <p class="text-glass-light small mb-2 text-truncate" title="${esc(p.email)}">
+                                                <i class="bi bi-envelope me-1"></i>${esc(p.email)}
+                                            </p>
+                                            <p class="text-glass-light small mb-2">
+                                                <i class="bi bi-clock-history me-1"></i>Tempo em Lagoinha: 
+                                                <span class="fw-semibold text-white">${esc(p.time_lagoinha_display)}</span>
+                                            </p>
+                                            <p class="text-glass-light small mb-2">
+                                                <i class="bi bi-diagram-3 me-1"></i>GC: ${gcBadge}
+                                            </p>
+                                        </div>
+                                        <div class="mt-2">
+                                            <a href="https://wa.me/${esc(p.whatsapp_clean)}" target="_blank" rel="noopener noreferrer" class="btn btn-success btn-sm w-100 rounded-pill fw-semibold shadow-sm text-uppercase">
+                                                <i class="bi bi-whatsapp me-2"></i>Conversar no WhatsApp
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>`;
+                        }
+                    }).join('');
+
+                }
+
+                // Update Pagination Controls
+                const pagContainer = document.getElementById('statModalPaginationContainer');
+                if (data.num_pages > 1) {
+                    let pageItems = data.page_range.map(p => `
+                        <li class="page-item ${p === data.page ? 'active' : ''}">
+                            <button type="button" class="page-link ${p === data.page ? 'btn-glass active' : 'btn-glass text-white'} rounded-circle px-3 py-1" onclick="fetchStatPage('${data.type}', ${parseInt(p, 10)})">
+                                ${esc(p)}
+                            </button>
+                        </li>
+                    `).join('');
+                    pagContainer.innerHTML = `
+                        <nav aria-label="Navegação de páginas do modal">
+                            <ul class="pagination pagination-sm justify-content-center mb-0 gap-1">
+                                ${pageItems}
+                            </ul>
+                        </nav>`;
+                } else {
+                    pagContainer.innerHTML = '';
+                }
+
+                container.style.opacity = '1';
+            })
+            .catch(err => {
+                console.error('Erro ao carregar modal estatístico:', err);
+                container.innerHTML = `
+                    <div class="col-12 text-center text-danger py-4">
+                        Ocorreu um erro ao carregar os dados. Por favor, tente novamente.
+                    </div>`;
+                container.style.opacity = '1';
+            });
+    }
+
+    function openStatModal(type) {
+        fetchStatPage(type, 1);
+        const modalEl = document.getElementById('statModal');
+        const modalObj = bootstrap.Modal.getOrCreateInstance(modalEl);
+        modalObj.show();
+    }
+
+
 
     function fetchPrayerPage(pageNum) {
         fetch('?page=' + pageNum + '&ajax=1')

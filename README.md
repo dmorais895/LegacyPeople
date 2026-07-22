@@ -21,7 +21,8 @@ O projeto segue a arquitetura de **Monólito Django**, priorizando simplicidade 
 - **Bootstrap 5 + Bootstrap Icons**: Layouts responsivos, grid do sistema e ícones vetoriais.
 - **Dart Sass (SCSS)**: Arquitetura modular de estilos (`_variables.scss`, `_layout.scss`, `_components.scss`) utilizando o padrão moderno `@use`.
 - **Django Compressor**: Pré-compilação e minificação automática de SCSS/CSS.
-- **Design System Glassmorphism**: Interface visual em tons suaves de acrílico e gradientes avermelhados, totalmente responsiva.
+- **Design System Glassmorphism**: Interface visual em tons suaves de acrílico e gradientes dourados (`#f5c701`), totalmente responsiva.
+- **Modais Estatísticos Reutilizáveis & Paginados**: Modal unificado via AJAX (`#statModal`) com paginação de até 10 pessoas por página, transição suave de opacidade, altura padronizada, rolagens internas nos cartões e botões diretos de integração com WhatsApp.
 
 #### **Segurança**
 - Proteção contra **Brute Force** no login (rate limiting por IP via Django Cache).
@@ -32,7 +33,8 @@ O projeto segue a arquitetura de **Monólito Django**, priorizando simplicidade 
 
 #### **Qualidade de Código & Testes**
 - **Pylint & pylint-django**: Análise estática com nota máxima de qualidade (**10.00 / 10**).
-- **Django Test Runner**: Suíte com **30 testes automatizados** cobrindo regras de negócio, validações de formulário, segurança e rate limiting.
+- **Django Test Runner**: Suíte com **34 testes automatizados** cobrindo regras de negócio, validações de formulário, modais estatísticos paginados, segurança e rate limiting.
+
 
 #### **DevOps & CI/CD**
 - **Docker & Docker Compose**: Conteinerização de produção e desenvolvimento isolado.
@@ -258,7 +260,8 @@ Acesse em `http://localhost:8000`. As migrações e arquivos estáticos são exe
 # Ativar o ambiente virtual
 source venv/bin/activate
 
-# Executar todos os 30 testes automatizados (com SQLite, sem configuração adicional)
+# Executar todos os 34 testes automatizados (com SQLite, sem configuração adicional)
+
 DB_ENGINE=django.db.backends.sqlite3 python manage.py test
 
 # Executar a verificação de qualidade com Pylint (nota mínima: 10.00/10)
