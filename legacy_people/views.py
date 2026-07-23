@@ -8,6 +8,7 @@ from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 from .models import Person
 from .forms import PersonForm
+import ipaddress
 
 # Brute-force / rate-limit configuration
 _MAX_LOGIN_ATTEMPTS = 5      # Maximum failed attempts before lockout
@@ -15,11 +16,24 @@ _LOCKOUT_WINDOW = 15 * 60    # Lockout duration in seconds (15 minutes)
 
 
 def _get_client_ip(request):
-    """Extract the real client IP, respecting reverse-proxy X-Forwarded-For."""
+    """Extract the real client IP, avoiding X‑Forwarded‑For spoofing.
+    If X‑Forwarded‑For is present, use the rightmost public IP in the list.
+    Otherwise fall back to REMOTE_ADDR.
+    """
     x_forwarded = request.META.get('HTTP_X_FORWARDED_FOR')
     if x_forwarded:
-        return x_forwarded.split(',')[0].strip()
+        # Split the header into a list of IPs and inspect from right to left
+        ips = [ip.strip() for ip in x_forwarded.split(',')]
+        for ip in reversed(ips):
+            try:
+                ip_obj = ipaddress.ip_address(ip)
+                if not ip_obj.is_private:
+                    return ip
+            except ValueError:
+                continue
+    # Fallback to direct remote address
     return request.META.get('REMOTE_ADDR', '0.0.0.0')
+
 
 
 def _is_ip_locked(ip):
@@ -64,8 +78,9 @@ def main_form(request):
         from django.http import HttpResponseTooManyRequests
         return HttpResponseTooManyRequests('Muitas submissões deste IP. Por favor, tente novamente mais tarde.')
     if request.method == 'POST':
-        # Count this attempt before validation (even if invalid) to avoid brute‑force bypass
-        cache.incr(f'form_attempts_{client_ip}', 1)
+        # Increment attempt counter safely using get + set (3600s window)
+        current_attempts = cache.get(f'form_attempts_{client_ip}', 0)
+        cache.set(f'form_attempts_{client_ip}', current_attempts + 1, timeout=3600)
         form = PersonForm(request.POST)
         if form.is_valid():
             form.save()
@@ -153,17 +168,18 @@ def _handle_feeling_ajax(feeling_param):
 def _handle_stat_ajax(request):
     """Return paginated people data for statistical modals via AJAX.
     Only authenticated users may access this endpoint. Accepted types are
-    'all', 'no_gc', and 'wants_chat'.
+    'all', 'no_gc', and 'wants_chat'. If the 'type' parameter is missing or
+    invalid, default to 'all' to avoid a 400 Bad Request.
     """
     # Enforce authentication explicitly (defense in depth)
     from django.contrib.auth.decorators import login_required
     @login_required
     def inner(request):
-        stat_type = request.GET.get('type', 'all')
-        # Validate allowed types to prevent enumeration attacks
+        stat_type = request.GET.get('type')
+        # Allowed types – default to 'all' for missing/invalid values
         allowed = {'all', 'no_gc', 'wants_chat'}
         if stat_type not in allowed:
-            return JsonResponse({'error': 'Invalid stat type'}, status=400)
+            stat_type = 'all'
         page_number = request.GET.get('page', 1)
 
         if stat_type == 'no_gc':
@@ -187,6 +203,8 @@ def _handle_stat_ajax(request):
             'legacy_reason': p.legacy_reason,
         } for p in page_obj]
         return JsonResponse({
+            'type': stat_type,
+            'total_count': paginator.count,
             'page': page_obj.number,
             'num_pages': paginator.num_pages,
             'page_range': list(paginator.page_range),

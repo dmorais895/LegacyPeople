@@ -198,3 +198,8 @@ X_FRAME_OPTIONS = 'DENY'
 
 # Referrer-Policy
 SECURE_REFERRER_POLICY = 'strict-origin-when-cross-origin'
+
+# Reverse Proxy / Proxy SSL Header settings (H-02 mitigation)
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+USE_X_FORWARDED_HOST = True
+
