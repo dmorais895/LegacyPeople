@@ -89,10 +89,7 @@ def main_form(request):
         messages.error(request, 'Por favor, corrija os erros no formulário.')
     else:
         form = PersonForm()
-    # Render with CSP header
-    response = render(request, 'legacy_people/main_form.html', {'form': form})
-    response['Content-Security-Policy'] = "default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com; img-src 'self' data:; font-src https://fonts.gstatic.com;"
-    return response
+    return render(request, 'legacy_people/main_form.html', {'form': form})
 
 def login_view(request):
     """Render and process administrative login with brute-force protection."""
