@@ -183,10 +183,16 @@ def _handle_stat_ajax(request):
 
     if stat_type == 'no_gc':
         qs = Person.objects.filter(has_gc=False)
+        title = 'Sem Grupo de Crescimento'
+        icon = 'bi-person-x'
     elif stat_type == 'wants_chat':
         qs = Person.objects.filter(wants_chat=True)
+        title = 'Gostariam de Conversar'
+        icon = 'bi-chat-dots'
     else:
         qs = Person.objects.all()
+        title = 'Total de Respostas'
+        icon = 'bi-people'
 
     paginator = Paginator(qs, 10)
     page_obj = paginator.get_page(page_number)
@@ -195,6 +201,10 @@ def _handle_stat_ajax(request):
         'name': p.name,
         'email': p.email,
         'whatsapp_clean': p.whatsapp_clean,
+        'has_gc': p.has_gc,
+        'gc_name': p.gc_name or '',
+        'time_lagoinha': p.time_lagoinha,
+        'time_lagoinha_display': p.get_time_lagoinha_display(),
         'feeling': p.feeling,
         'feeling_label': FEELING_MAP.get(p.feeling, ('', ''))[0],
         'feeling_icon': FEELING_MAP.get(p.feeling, ('', ''))[1],
@@ -203,6 +213,8 @@ def _handle_stat_ajax(request):
     } for p in page_obj]
     return JsonResponse({
         'type': stat_type,
+        'title': title,
+        'icon': icon,
         'total_count': paginator.count,
         'page': page_obj.number,
         'num_pages': paginator.num_pages,
