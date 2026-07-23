@@ -301,6 +301,8 @@ class LegacyPeopleAuthAndDashboardTests(TestCase):
         self.assertEqual(res.status_code, 200)
         data = res.json()
         self.assertEqual(data['type'], 'no_gc')
+        self.assertEqual(data['title'], 'Sem Grupo de Crescimento')
+        self.assertEqual(data['icon'], 'bi-person-x')
         self.assertEqual(data['total_count'], 1)
         self.assertEqual(data['people'][0]['name'], 'Person 1')
 
@@ -311,8 +313,34 @@ class LegacyPeopleAuthAndDashboardTests(TestCase):
         self.assertEqual(res.status_code, 200)
         data = res.json()
         self.assertEqual(data['type'], 'wants_chat')
+        self.assertEqual(data['title'], 'Gostariam de Conversar')
+        self.assertEqual(data['icon'], 'bi-chat-dots')
         self.assertEqual(data['total_count'], 1)
         self.assertEqual(data['people'][0]['name'], 'Person 1')
+
+    def test_stat_modal_ajax_returns_gc_and_time_lagoinha_fields(self):
+        """Test stat_ajax JSON includes title, icon, has_gc, gc_name, time_lagoinha and time_lagoinha_display."""
+        self.client.login(username='testadmin', password='password123')
+        Person.objects.create(
+            name="GC Member",
+            email="gcmember@example.com",
+            whatsapp="+5511988887777",
+            has_gc=True,
+            gc_name="GC Mananciais",
+            time_lagoinha="1_3_anos",
+            feeling=2,
+            frequents_legacy=True,
+        )
+        res = self.client.get(reverse('legacy_people:dashboard') + '?stat_ajax=1&type=all&page=1')
+        self.assertEqual(res.status_code, 200)
+        data = res.json()
+        self.assertEqual(data['title'], 'Total de Respostas')
+        self.assertEqual(data['icon'], 'bi-people')
+        gc_person_data = next(p for p in data['people'] if p['name'] == 'GC Member')
+        self.assertTrue(gc_person_data['has_gc'])
+        self.assertEqual(gc_person_data['gc_name'], 'GC Mananciais')
+        self.assertEqual(gc_person_data['time_lagoinha'], '1_3_anos')
+        self.assertEqual(gc_person_data['time_lagoinha_display'], 'Entre 1 e 3 anos')
 
     def test_dashboard_prayer_requests_pagination(self):
 
