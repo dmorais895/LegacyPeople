@@ -1,14 +1,16 @@
-from django.shortcuts import render, redirect
-from django.contrib.auth import login, logout, authenticate
-from django.contrib.auth.decorators import login_required
+import ipaddress
+
 from django.contrib import messages
+from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth.decorators import login_required
 from django.core.cache import cache
 from django.core.paginator import Paginator
-from django.http import JsonResponse
+from django.http import HttpResponse, JsonResponse
+from django.shortcuts import redirect, render
 from django.views.decorators.http import require_POST
-from .models import Person
+
 from .forms import PersonForm
-import ipaddress
+from .models import Person
 
 # Brute-force / rate-limit configuration
 _MAX_LOGIN_ATTEMPTS = 5      # Maximum failed attempts before lockout
@@ -33,7 +35,6 @@ def _get_client_ip(request):
                 continue
     # Fallback to direct remote address
     return request.META.get('REMOTE_ADDR', '0.0.0.0')
-
 
 
 def _is_ip_locked(ip):
@@ -75,8 +76,10 @@ def main_form(request):
     client_ip = _get_client_ip(request)
     if cache.get(f'form_attempts_{client_ip}', 0) >= 20:
         # Too many attempts – return 429 Too Many Requests
-        from django.http import HttpResponseTooManyRequests
-        return HttpResponseTooManyRequests('Muitas submissões deste IP. Por favor, tente novamente mais tarde.')
+        return HttpResponse(
+            'Muitas submissões deste IP. Por favor, tente novamente mais tarde.',
+            status=429
+        )
     if request.method == 'POST':
         # Increment attempt counter safely using get + set (3600s window)
         current_attempts = cache.get(f'form_attempts_{client_ip}', 0)
@@ -168,46 +171,44 @@ def _handle_stat_ajax(request):
     'all', 'no_gc', and 'wants_chat'. If the 'type' parameter is missing or
     invalid, default to 'all' to avoid a 400 Bad Request.
     """
-    # Enforce authentication explicitly (defense in depth)
-    from django.contrib.auth.decorators import login_required
-    @login_required
-    def inner(request):
-        stat_type = request.GET.get('type')
-        # Allowed types – default to 'all' for missing/invalid values
-        allowed = {'all', 'no_gc', 'wants_chat'}
-        if stat_type not in allowed:
-            stat_type = 'all'
-        page_number = request.GET.get('page', 1)
+    if not request.user.is_authenticated:
+        return JsonResponse({'error': 'Authentication required'}, status=401)
 
-        if stat_type == 'no_gc':
-            qs = Person.objects.filter(has_gc=False)
-        elif stat_type == 'wants_chat':
-            qs = Person.objects.filter(wants_chat=True)
-        else:
-            qs = Person.objects.all()
+    stat_type = request.GET.get('type')
+    # Allowed types – default to 'all' for missing/invalid values
+    allowed = {'all', 'no_gc', 'wants_chat'}
+    if stat_type not in allowed:
+        stat_type = 'all'
+    page_number = request.GET.get('page', 1)
 
-        paginator = Paginator(qs, 10)
-        page_obj = paginator.get_page(page_number)
-        people_data = [{
-            'id': p.id,
-            'name': p.name,
-            'email': p.email,
-            'whatsapp_clean': p.whatsapp_clean,
-            'feeling': p.feeling,
-            'feeling_label': FEELING_MAP.get(p.feeling, ('', ''))[0],
-            'feeling_icon': FEELING_MAP.get(p.feeling, ('', ''))[1],
-            'frequents_legacy': p.frequents_legacy,
-            'legacy_reason': p.legacy_reason,
-        } for p in page_obj]
-        return JsonResponse({
-            'type': stat_type,
-            'total_count': paginator.count,
-            'page': page_obj.number,
-            'num_pages': paginator.num_pages,
-            'page_range': list(paginator.page_range),
-            'people': people_data,
-        })
-    return inner(request)
+    if stat_type == 'no_gc':
+        qs = Person.objects.filter(has_gc=False)
+    elif stat_type == 'wants_chat':
+        qs = Person.objects.filter(wants_chat=True)
+    else:
+        qs = Person.objects.all()
+
+    paginator = Paginator(qs, 10)
+    page_obj = paginator.get_page(page_number)
+    people_data = [{
+        'id': p.id,
+        'name': p.name,
+        'email': p.email,
+        'whatsapp_clean': p.whatsapp_clean,
+        'feeling': p.feeling,
+        'feeling_label': FEELING_MAP.get(p.feeling, ('', ''))[0],
+        'feeling_icon': FEELING_MAP.get(p.feeling, ('', ''))[1],
+        'frequents_legacy': p.frequents_legacy,
+        'legacy_reason': p.legacy_reason,
+    } for p in page_obj]
+    return JsonResponse({
+        'type': stat_type,
+        'total_count': paginator.count,
+        'page': page_obj.number,
+        'num_pages': paginator.num_pages,
+        'page_range': list(paginator.page_range),
+        'people': people_data,
+    })
 
 
 @login_required
