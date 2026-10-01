@@ -6,7 +6,7 @@ services:
     container_name: legacypeople_app
     restart: always
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     environment:
       # -----------------------------------------------------------------------
       # Django — Security settings
@@ -16,6 +16,7 @@ services:
       - SECRET_KEY=${SECRET_KEY}
       - DEBUG=${DEBUG:-False}
       - ALLOWED_HOSTS=${ALLOWED_HOSTS:-}
+      - TRUSTED_PROXY_CIDRS=${TRUSTED_PROXY_CIDRS:-}
       # -----------------------------------------------------------------------
       # Database — MySQL connection
       # -----------------------------------------------------------------------
@@ -39,7 +40,7 @@ services:
       MYSQL_PASSWORD: ${DB_PASSWORD:-django}
       MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root}
     ports:
-      - "3306:3306"
+      - "127.0.0.1:3306:3306"
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       interval: 5s

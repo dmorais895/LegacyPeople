@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 """
 
 import os
+from ipaddress import ip_network
 from pathlib import Path
 
 import pymysql
@@ -111,6 +112,10 @@ DATABASES = {
     }
 }
 
+if _USE_SQLITE:
+    # A file-backed test DB lets independent connections exercise concurrent limits.
+    DATABASES['default']['TEST'] = {'NAME': os.getenv('SQLITE_TEST_DB_PATH') or None}
+
 
 # Password validation
 # https://docs.djangoproject.com/en/4.2/ref/settings/#auth-password-validators
@@ -200,6 +205,11 @@ X_FRAME_OPTIONS = 'DENY'
 # Referrer-Policy
 SECURE_REFERRER_POLICY = 'strict-origin-when-cross-origin'
 
-# Reverse Proxy / Proxy SSL Header settings (H-02 mitigation)
+# Only these proxy IPs/CIDRs may supply the client's forwarded IP address.
+TRUSTED_PROXY_CIDRS = [cidr.strip() for cidr in os.getenv('TRUSTED_PROXY_CIDRS', '').split(',') if cidr.strip()]
+for _proxy_cidr in TRUSTED_PROXY_CIDRS:
+    ip_network(_proxy_cidr)  # Fail early on invalid network configuration.
+
+# HTTPS/host forwarding requires an upstream proxy that sanitizes these headers.
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 USE_X_FORWARDED_HOST = True

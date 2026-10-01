@@ -1,0 +1,73 @@
+# Standalone production stack. Do not merge it with docker-compose.yml.
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: devops/Dockerfile
+    restart: always
+    environment:
+      SECRET_KEY: ${SECRET_KEY:?Set SECRET_KEY before starting production}
+      DEBUG: "False"
+      ALLOWED_HOSTS: ${SITE_DOMAIN:?Set SITE_DOMAIN to your public hostname}
+      TRUSTED_PROXY_CIDRS: ${PROXY_IP:-172.30.0.10}/32
+      DB_ENGINE: django.db.backends.mysql
+      DB_NAME: ${DB_NAME:-legacypeople}
+      DB_USER: ${DB_USER:-django}
+      DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD before starting production}
+      DB_HOST: db
+      DB_PORT: "3306"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - backend
+
+  db:
+    image: mysql:8.0
+    restart: always
+    environment:
+      MYSQL_DATABASE: ${DB_NAME:-legacypeople}
+      MYSQL_USER: ${DB_USER:-django}
+      MYSQL_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD before starting production}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?Set DB_ROOT_PASSWORD before starting production}
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - backend
+
+  proxy:
+    image: caddy:2-alpine
+    restart: always
+    environment:
+      SITE_DOMAIN: ${SITE_DOMAIN:?Set SITE_DOMAIN to your public hostname}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - app
+    networks:
+      public:
+      backend:
+        ipv4_address: ${PROXY_IP:-172.30.0.10}
+
+networks:
+  public:
+  backend:
+    internal: true
+    ipam:
+      config:
+        - subnet: ${PROXY_SUBNET:-172.30.0.0/24}
+
+volumes:
+  mysql_data:
+  caddy_data:
+  caddy_config:

@@ -52,4 +52,5 @@ USER appuser
 EXPOSE 8000
 
 ENTRYPOINT ["/entrypoint.sh"]
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "core.wsgi:application"]
+# Clear the base image's command; entrypoint selects the server using DEBUG.
+CMD []

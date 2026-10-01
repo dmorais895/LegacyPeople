@@ -1,0 +1,43 @@
+# Secrets and local configuration are supplied at runtime.
+**/.env*
+**/.aws
+**/.ssh
+**/*.pem
+**/*.key
+
+# Repository, editor, and agent metadata.
+**/.git
+.github
+**/.docker
+**/.vscode
+**/.idea
+**/.agents
+**/.codex
+**/.DS_Store
+
+# Install dependencies inside the image, not from the host.
+**/venv
+**/.venv
+**/env
+**/node_modules
+
+# Python caches and generated build artifacts.
+**/__pycache__
+**/*.py[cod]
+**/*.egg-info
+**/.pytest_cache
+**/.mypy_cache
+**/.ruff_cache
+**/.sass-cache
+build
+dist
+
+# Local databases, uploads, generated static files, and logs.
+**/*.sqlite3
+**/*.sqlite3-*
+**/*.sqlite
+**/*.sqlite-*
+**/staticfiles
+**/media
+**/*.log
+security_audit_report*
