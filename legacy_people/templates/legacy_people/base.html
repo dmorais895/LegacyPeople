@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LegacyPeople</title>
+    <link rel="icon" type="image/svg+xml" href="{% static 'legacy_people/favicon.svg' %}">
     <!-- Google Fonts: preconnect for faster loading -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -33,9 +34,11 @@
             <div class="collapse navbar-collapse justify-content-end" id="navbarNav">
                 <ul class="navbar-nav align-items-center gap-2 mt-2 mt-lg-0">
                     {% if user.is_authenticated %}
+                        {% if user.is_staff and perms.legacy_people.view_person %}
                         <li class="nav-item">
                             <a class="nav-link text-white fw-semibold" href="{% url 'legacy_people:dashboard' %}">Dashboard</a>
                         </li>
+                        {% endif %}
                         <li class="nav-item">
                             <form method="POST" action="{% url 'legacy_people:logout' %}" class="d-inline">
                             {% csrf_token %}

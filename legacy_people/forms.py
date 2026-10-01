@@ -3,7 +3,23 @@ from django import forms
 from django.utils.html import strip_tags
 from .models import Person
 
+YES_NO_CHOICES = (("yes", "Sim"), ("no", "Não"))
+
 class PersonForm(forms.ModelForm):
+    # Explicit choices avoid treating the non-empty string "no" as True.
+    has_gc = forms.TypedChoiceField(
+        choices=YES_NO_CHOICES, coerce=lambda value: value == "yes",
+        empty_value=False, required=False, widget=forms.RadioSelect,
+    )
+    wants_chat = forms.TypedChoiceField(
+        choices=YES_NO_CHOICES, coerce=lambda value: value == "yes",
+        empty_value=False, required=False, widget=forms.RadioSelect,
+    )
+    frequents_legacy = forms.TypedChoiceField(
+        choices=YES_NO_CHOICES, coerce=lambda value: value == "yes",
+        empty_value=False, required=False, widget=forms.RadioSelect,
+    )
+
     class Meta:
         model = Person
         fields = [

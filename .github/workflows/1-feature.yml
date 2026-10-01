@@ -12,38 +12,33 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        # Aligned with the runtime declared in Dockerfile (python:3.10-slim).
-        # Testing 3.11 and 3.12 ensures forward-compatibility.
-        python-version: ["3.10", "3.11", "3.12"]
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Python ${{ matrix.python-version }}
+      - name: Set up Python 3.12
         uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python-version }}
-
-      # Cache pip packages keyed by OS + Python version + requirements hash.
-      # Cuts install time from ~30s to ~5s on cache hits.
-      - name: Cache pip packages
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ matrix.python-version }}-${{ hashFiles('requirements-dev.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-${{ matrix.python-version }}-
-            ${{ runner.os }}-pip-
+          python-version-file: .python-version
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pylint pylint-django
-          if [ -f requirements-dev.txt ]; then pip install -r requirements-dev.txt; fi
+          python -m pip install -r requirements-dev.txt
+
+      - name: Set up Node.js for SCSS compilation
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install frontend dependencies
+        run: npm ci
 
       # Run pylint with the Django plugin so it understands models, views, etc.
       # DB_ENGINE=sqlite3 avoids connection attempts to external databases.
@@ -55,7 +50,7 @@ jobs:
           DEBUG: "True"
           SECRET_KEY: "ci-only-insecure-key-not-used-in-production"
         run: |
-          pylint --load-plugins=pylint_django \
+          python -m pylint --load-plugins=pylint_django \
                  --django-settings-module=core.settings \
                  $(git ls-files '*.py' | grep -v 'migrations/')
 
@@ -66,6 +61,7 @@ jobs:
           DB_ENGINE: django.db.backends.sqlite3
           DEBUG: "True"
           SECRET_KEY: "ci-only-insecure-key-not-used-in-production"
+          SQLITE_TEST_DB_PATH: ${{ runner.temp }}/legacypeople-tests.sqlite3
         run: |
           python manage.py test legacy_people --verbosity=2
 

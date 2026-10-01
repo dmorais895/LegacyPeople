@@ -8,6 +8,16 @@ TIME_LAGOINHA_CHOICES = [
     ('mais_3_anos', 'Mais de 3 anos'),
 ]
 
+class RateLimit(models.Model):
+    """Shared fixed-window counters, updated atomically by all application workers."""
+
+    key = models.CharField(max_length=100, primary_key=True)
+    attempts = models.PositiveIntegerField(default=0)
+    expires_at = models.DateTimeField(db_index=True)
+
+    def __str__(self):
+        return self.key
+
 class Person(models.Model):
     FEELING_CHOICES = [
         (1, 'Ótimo'),

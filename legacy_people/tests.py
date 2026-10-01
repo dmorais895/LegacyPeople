@@ -1,7 +1,11 @@
+from datetime import datetime, timezone as datetime_timezone
+from itertools import product
+
+from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Permission
 from django.test import TestCase
 from django.urls import reverse
-from django.contrib.auth import get_user_model
-from django.core.cache import cache
+
 from .forms import PersonForm
 from .models import Person
 
@@ -61,6 +65,21 @@ class LegacyPeopleViewTests(TestCase):
         self.assertContains(response_form, 'col-lg-')
 
 class LegacyPeopleFormTests(TestCase):
+    def test_invalid_radio_answers_are_rejected(self):
+        """Reject unexpected radio values rather than coercing them to True."""
+        for field in ("has_gc", "wants_chat", "frequents_legacy"):
+            with self.subTest(field=field):
+                form = PersonForm(data={
+                    "name": "Test User",
+                    "email": "test@example.com",
+                    "whatsapp": "+5511999999999",
+                    "time_lagoinha": "menos_6_meses",
+                    "feeling": "1",
+                    field: "unexpected",
+                })
+                self.assertFalse(form.is_valid())
+                self.assertIn(field, form.errors)
+
     def test_whatsapp_validation_valid(self):
         """Test that a valid whatsapp number passes validation."""
         form_data = {
@@ -69,7 +88,7 @@ class LegacyPeopleFormTests(TestCase):
             'whatsapp': '+55 (11) 99999-9999',
             'time_lagoinha': 'menos_6_meses',
             'feeling': 1,
-            'frequents_legacy': True,
+            'frequents_legacy': "yes",
         }
         form = PersonForm(data=form_data)
         self.assertTrue(form.is_valid())
@@ -83,7 +102,7 @@ class LegacyPeopleFormTests(TestCase):
             'whatsapp': '1234567890',
             'time_lagoinha': 'menos_6_meses',
             'feeling': 1,
-            'frequents_legacy': True,
+            'frequents_legacy': "yes",
         }
         form = PersonForm(data=form_data)
         self.assertFalse(form.is_valid())
@@ -98,7 +117,7 @@ class LegacyPeopleFormTests(TestCase):
             'time_lagoinha': 'menos_6_meses',
             'feeling': 1,
             'prayer_request': '<b>Abençoe</b> <img src=x onerror=alert(1)>',
-            'frequents_legacy': True,
+            'frequents_legacy': "yes",
         }
         form = PersonForm(data=form_data)
         self.assertTrue(form.is_valid())
@@ -115,7 +134,7 @@ class LegacyPeopleFormTests(TestCase):
             'time_lagoinha': 'menos_6_meses',
             'feeling': 1,
             'prayer_request': 'a' * 2001,
-            'frequents_legacy': True,
+            'frequents_legacy': "yes",
         }
         form = PersonForm(data=form_data)
         self.assertFalse(form.is_valid())
@@ -127,11 +146,11 @@ class LegacyPeopleFormTests(TestCase):
             'name': 'Test User',
             'email': 'test@example.com',
             'whatsapp': '+5511999999999',
-            'has_gc': False,
+            'has_gc': "no",
             'gc_name': 'Tampered GC Name',
             'time_lagoinha': 'menos_6_meses',
             'feeling': 1,
-            'frequents_legacy': True,
+            'frequents_legacy': "yes",
             'legacy_reason': 'Tampered Reason',
         }
         form = PersonForm(data=form_data)
@@ -140,6 +159,31 @@ class LegacyPeopleFormTests(TestCase):
         self.assertEqual(form.cleaned_data['legacy_reason'], '')
 
 class LegacyPeopleSubmissionTests(TestCase):
+    def test_radio_answers_are_saved_as_booleans(self):
+        """Persist every combination of the questionnaire's yes/no radio answers."""
+        for has_gc, wants_chat, frequents_legacy in product(("yes", "no"), repeat=3):
+            with self.subTest(has_gc=has_gc, wants_chat=wants_chat, frequents_legacy=frequents_legacy):
+                response = self.client.post(reverse("legacy_people:main_form"), data={
+                    "name": "Radio Answer User",
+                    "email": "radio@example.com",
+                    "whatsapp": "+5511999999999",
+                    "time_lagoinha": "menos_6_meses",
+                    "feeling": "1",
+                    "has_gc": has_gc,
+                    "wants_chat": wants_chat,
+                    "frequents_legacy": frequents_legacy,
+                    "gc_name": "GC Example",
+                    "legacy_reason": "More activities",
+                })
+                self.assertEqual(response.status_code, 302)
+                person = Person.objects.latest("id")
+                self.assertEqual(person.has_gc, has_gc == "yes")
+                self.assertEqual(person.wants_chat, wants_chat == "yes")
+                self.assertEqual(person.frequents_legacy, frequents_legacy == "yes")
+                self.assertEqual(person.gc_name, "GC Example" if has_gc == "yes" else "")
+                self.assertEqual(person.legacy_reason, "More activities" if frequents_legacy == "no" else "")
+        self.assertEqual(Person.objects.count(), 8)
+
     def test_main_form_post_success(self):
         """Test that a valid POST request creates a Person and redirects."""
         form_data = {
@@ -148,7 +192,7 @@ class LegacyPeopleSubmissionTests(TestCase):
             'whatsapp': '+5511999999999',
             'time_lagoinha': 'menos_6_meses',
             'feeling': 1,
-            'frequents_legacy': True,
+            'frequents_legacy': "yes",
         }
         response = self.client.post(reverse('legacy_people:main_form'), data=form_data)
         self.assertEqual(response.status_code, 302)
@@ -156,7 +200,10 @@ class LegacyPeopleSubmissionTests(TestCase):
 
 class LegacyPeopleAuthAndDashboardTests(TestCase):
     def setUp(self):
-        self.user = User.objects.create_user(username='testadmin', password='password123')
+        self.user = User.objects.create_user(username='testadmin', password='password123', is_staff=True)
+        self.user.user_permissions.add(Permission.objects.get(
+            codename="view_person", content_type__app_label="legacy_people", content_type__model="person",
+        ))
         self.p1 = Person.objects.create(
             name='Person 1', email='p1@ex.com', whatsapp='+5511999991111',
             has_gc=False, time_lagoinha='menos_6_meses', feeling=1, wants_chat=True
@@ -387,6 +434,18 @@ class LegacyPeopleAuthAndDashboardTests(TestCase):
         self.assertEqual(json_data['num_pages'], 2)
         self.assertEqual(len(json_data['prayers']), 5)
 
+    def test_prayer_dates_use_same_timezone_in_html_and_ajax(self):
+        """Keep Fortaleza's local time when prayer cards are replaced via AJAX."""
+        Person.objects.filter(pk=self.p1.pk).update(
+            prayer_request="Timezone regression",
+            created_at=datetime(2026, 10, 1, 15, 0, tzinfo=datetime_timezone.utc),
+        )
+        self.client.force_login(self.user)
+        html = self.client.get(reverse("legacy_people:dashboard"))
+        self.assertContains(html, "01/10/2026 12:00")
+        ajax = self.client.get(reverse("legacy_people:dashboard") + "?ajax=1")
+        self.assertEqual(ajax.json()["prayers"][0]["created_at"], "01/10/2026 12:00")
+
     def test_dashboard_feeling_ajax_filter(self):
         """Test that feeling_ajax=1 returns JsonResponse with filtered people list."""
         self.client.login(username='testadmin', password='password123')
@@ -402,9 +461,8 @@ class LoginRateLimitTests(TestCase):
     """Tests for brute-force / rate-limit protection on the login view."""
 
     def setUp(self):
-        cache.clear()
         self.login_url = reverse('legacy_people:login')
-        self.user = User.objects.create_user(username='admin', password='correctpass')
+        self.user = User.objects.create_superuser(username='admin', password='correctpass')
 
     def _post_bad_login(self, n=1):
         """Submit n failed login attempts."""

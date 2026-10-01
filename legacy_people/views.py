@@ -1,58 +1,32 @@
-import ipaddress
-
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
-from django.core.cache import cache
+from django.core.exceptions import PermissionDenied
 from django.core.paginator import Paginator
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
+from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from .forms import PersonForm
 from .models import Person
+from .rate_limits import clear_attempts, consume_attempt, get_attempts, get_client_ip
 
 # Brute-force / rate-limit configuration
 _MAX_LOGIN_ATTEMPTS = 5      # Maximum failed attempts before lockout
 _LOCKOUT_WINDOW = 15 * 60    # Lockout duration in seconds (15 minutes)
 
 
-def _get_client_ip(request):
-    """Extract the real client IP, avoiding X‑Forwarded‑For spoofing.
-    If X‑Forwarded‑For is present, use the rightmost public IP in the list.
-    Otherwise fall back to REMOTE_ADDR.
-    """
-    x_forwarded = request.META.get('HTTP_X_FORWARDED_FOR')
-    if x_forwarded:
-        # Split the header into a list of IPs and inspect from right to left
-        ips = [ip.strip() for ip in x_forwarded.split(',')]
-        for ip in reversed(ips):
-            try:
-                ip_obj = ipaddress.ip_address(ip)
-                if not ip_obj.is_private:
-                    return ip
-            except ValueError:
-                continue
-    # Fallback to direct remote address
-    return request.META.get('REMOTE_ADDR', '0.0.0.0')
+def _can_access_dashboard(user):
+    """Require an active staff account authorized to read person records."""
+    return user.is_active and user.is_staff and user.has_perm("legacy_people.view_person")
 
 
 def _is_ip_locked(ip):
     """Return True if the IP has exceeded the maximum failed login attempts."""
-    attempts = cache.get(f'login_attempts_{ip}', 0)
+    attempts = get_attempts(f'login_attempts_{ip}')
     return attempts >= _MAX_LOGIN_ATTEMPTS
 
-
-def _register_failed_attempt(ip):
-    """Increment the failed-attempt counter for an IP within the lockout window."""
-    cache_key = f'login_attempts_{ip}'
-    attempts = cache.get(cache_key, 0)
-    cache.set(cache_key, attempts + 1, timeout=_LOCKOUT_WINDOW)
-
-
-def _clear_failed_attempts(ip):
-    """Reset the failed-attempt counter for an IP after a successful login."""
-    cache.delete(f'login_attempts_{ip}')
 
 FEELING_MAP = {
     1: ('Ótimo', 'bi-emoji-laughing'),
@@ -73,17 +47,19 @@ def main_form(request):
     * Simple IP‑based rate limiting to mitigate DDoS / abuse.
     """
     # ----- Rate limiting (20 submissions per hour per IP) -----
-    client_ip = _get_client_ip(request)
-    if cache.get(f'form_attempts_{client_ip}', 0) >= 20:
+    client_ip = get_client_ip(request)
+    form_key = f'form_attempts_{client_ip}'
+    blocked = (
+        not consume_attempt(form_key, 20, 3600) if request.method == 'POST'
+        else get_attempts(form_key) >= 20
+    )
+    if blocked:
         # Too many attempts – return 429 Too Many Requests
         return HttpResponse(
             'Muitas submissões deste IP. Por favor, tente novamente mais tarde.',
             status=429
         )
     if request.method == 'POST':
-        # Increment attempt counter safely using get + set (3600s window)
-        current_attempts = cache.get(f'form_attempts_{client_ip}', 0)
-        cache.set(f'form_attempts_{client_ip}', current_attempts + 1, timeout=3600)
         form = PersonForm(request.POST)
         if form.is_valid():
             form.save()
@@ -97,11 +73,17 @@ def main_form(request):
 def login_view(request):
     """Render and process administrative login with brute-force protection."""
     if request.user.is_authenticated:
-        return redirect('legacy_people:dashboard')
+        destination = 'legacy_people:dashboard' if _can_access_dashboard(request.user) else 'legacy_people:landing'
+        return redirect(destination)
 
-    client_ip = _get_client_ip(request)
+    client_ip = get_client_ip(request)
+    login_key = f'login_attempts_{client_ip}'
 
-    if _is_ip_locked(client_ip):
+    blocked = (
+        not consume_attempt(login_key, _MAX_LOGIN_ATTEMPTS, _LOCKOUT_WINDOW)
+        if request.method == 'POST' else _is_ip_locked(client_ip)
+    )
+    if blocked:
         return render(request, 'legacy_people/login.html', {
             'locked': True,
             'lockout_minutes': _LOCKOUT_WINDOW // 60,
@@ -111,14 +93,13 @@ def login_view(request):
         username = request.POST.get('username', '').strip()
         password = request.POST.get('password', '')
         user = authenticate(request, username=username, password=password)
-        if user is not None:
-            _clear_failed_attempts(client_ip)
+        if user is not None and _can_access_dashboard(user):
+            clear_attempts(login_key)
             login(request, user)
             messages.success(request, 'Login realizado com sucesso.')
             return redirect('legacy_people:dashboard')
 
-        _register_failed_attempt(client_ip)
-        remaining = _MAX_LOGIN_ATTEMPTS - cache.get(f'login_attempts_{client_ip}', 0)
+        remaining = _MAX_LOGIN_ATTEMPTS - get_attempts(login_key)
         if remaining <= 0:
             return render(request, 'legacy_people/login.html', {
                 'locked': True,
@@ -167,12 +148,14 @@ def _handle_feeling_ajax(feeling_param):
 
 def _handle_stat_ajax(request):
     """Return paginated people data for statistical modals via AJAX.
-    Only authenticated users may access this endpoint. Accepted types are
+    Only authorized staff may access this endpoint. Accepted types are
     'all', 'no_gc', and 'wants_chat'. If the 'type' parameter is missing or
     invalid, default to 'all' to avoid a 400 Bad Request.
     """
     if not request.user.is_authenticated:
         return JsonResponse({'error': 'Authentication required'}, status=401)
+    if not _can_access_dashboard(request.user):
+        return JsonResponse({'error': 'Permission denied'}, status=403)
 
     stat_type = request.GET.get('type')
     # Allowed types – default to 'all' for missing/invalid values
@@ -225,7 +208,10 @@ def _handle_stat_ajax(request):
 
 @login_required
 def dashboard_view(request):
-    """Authenticated dashboard displaying form data metrics and prayer requests."""
+    """Staff dashboard requiring permission to read person records."""
+    if not _can_access_dashboard(request.user):
+        raise PermissionDenied
+
     if request.GET.get('stat_ajax') == '1':
         return _handle_stat_ajax(request)
 
@@ -251,7 +237,7 @@ def dashboard_view(request):
     if request.GET.get('ajax') == '1':
         prayers_data = [{
             'name': p.name,
-            'created_at': p.created_at.strftime('%d/%m/%Y %H:%M') if p.created_at else '',
+            'created_at': timezone.localtime(p.created_at).strftime('%d/%m/%Y %H:%M') if p.created_at else '',
             'prayer_request': p.prayer_request
         } for p in prayers_page]
 

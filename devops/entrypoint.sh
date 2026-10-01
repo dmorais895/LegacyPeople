@@ -17,5 +17,14 @@ python manage.py migrate --noinput
 echo "Collecting static files..."
 python manage.py collectstatic --noinput
 
-echo "Starting application server..."
+# An explicit container command takes precedence over the default server choice.
+if [ "$#" -eq 0 ]; then
+  if [ "${DEBUG:-False}" = "True" ]; then
+    set -- python manage.py runserver "0.0.0.0:${PORT:-8000}"
+  else
+    set -- gunicorn --bind "0.0.0.0:${PORT:-8000}" core.wsgi:application
+  fi
+fi
+
+echo "Starting application command..."
 exec "$@"
